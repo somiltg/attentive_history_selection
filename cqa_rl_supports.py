@@ -2,16 +2,23 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import numpy as np
+import collections
+import json
+import math
+import os
+import modeling
+import optimization
+import tokenization
+import six
 import tensorflow as tf
+import numpy as np
+
 from cqa_flags import FLAGS
-from cqa_gen_batches import *
-from cqa_model import *
 from cqa_supports import *
-from sklearn.metrics.pairwise import cosine_similarity
-
-
+from cqa_model import *
+from cqa_gen_batches import *
 # from cqa_selection_supports import *
+
 
 def get_selected_examples(examples_matrix, actions_reshaped):
     selected_examples = []
@@ -305,96 +312,96 @@ def get_selected_example_features(batch_features, batch_example_tracker, batch_v
     assert len(reward_penalty) == len(actions)
     return selected_example_features, relative_selected_pos, reward_penalty
 
-def get_selected_example_features_without_actions(batch_features, batch_example_tracker, batch_variation_tracker, tfidf_vectorizer=None):
-    
-    prev_e_tracker, prev_v_tracker = None, None
-    relative_selected_pos = [] # the relative position of the selected history compared to the current turn
-    handled_variations = {} # each example variation could have more than one features, but we only store the "relative_selected_pos" once 
-    f_tracker = 0 # feature tracker, denotes the feature index for each variation
-    
-    large_tfidf_dict = {}
-    if FLAGS.history_selection == 'tfidf_sim' and FLAGS.more_history != 0:
-        fd = convert_features_to_feed_dict(batch_features)
-        tfidf_features = get_tfidf_features(fd['input_ids'], fd['history_answer_marker'], tfidf_vectorizer)
-        # print('tfidf_features', tfidf_features)
-        # print('batch_example_tracker', batch_example_tracker)
-        # print('batch_variation_tracker', batch_variation_tracker)
-        merged_tfidf, merged_example_tracker, merged_variation_tracker = get_merged_features(
-                                        tfidf_features, batch_example_tracker, batch_variation_tracker)
-        # print('merged_tfidf', merged_tfidf)
-        # print('merged_example_tracker', merged_example_tracker)
-        # print('merged_variation_tracker', merged_variation_tracker)
-        tfidf_dict = {}
-        for tfidf_score, e_tracker, v_tracker in zip(merged_tfidf, merged_example_tracker, merged_variation_tracker):
-            if e_tracker not in tfidf_dict:
-                tfidf_dict[e_tracker] = []
-            tfidf_dict[e_tracker].append(tfidf_score)
-        # print('tfidf_dict', tfidf_dict)
-        
-        for e_tracker, score_list in tfidf_dict.items():
-            score_list_arg_sorted = np.argsort(np.asarray(score_list))
-            selected_variation_ids = score_list_arg_sorted[- FLAGS.more_history :]
-            for v_id in selected_variation_ids:
-                if tfidf_dict[e_tracker][v_id] != 0:
-                    large_tfidf_dict[(e_tracker, v_id)] = True
-        # print('large_tfidf_dict', large_tfidf_dict)
-    
-    selected_example_features_dict = {}
-    for feature, e_tracker, v_tracker in zip(batch_features, batch_example_tracker, batch_variation_tracker):
-        # get the f_tracker
-        if e_tracker == prev_e_tracker and v_tracker == prev_v_tracker:
-            f_tracker += 1
-        else:
-            f_tracker = 0
-        prev_e_tracker, prev_v_tracker = e_tracker, v_tracker
-
-        # we append a feature that is without any history, so we can build upon this if other histories are chosen
-        if e_tracker not in selected_example_features_dict:                    
-            feature_without_marker = deepcopy(feature)
-            feature_without_marker.history_answer_marker = np.zeros(len(feature.history_answer_marker))
-            feature_without_marker.metadata['history_turns'] = []
-            selected_example_features_dict[e_tracker] = [feature_without_marker]
-        elif f_tracker >= len(selected_example_features_dict[e_tracker]):
-            feature_without_marker = deepcopy(feature)
-            feature_without_marker.history_answer_marker = np.zeros(len(feature.history_answer_marker))
-            feature_without_marker.metadata['history_turns'] = []
-            selected_example_features_dict[e_tracker].append(feature_without_marker)
-        
-        # add history answer markers, a turn is selected if it either in immediate previous j turns or have large tfidf score
-        if len(feature.metadata['history_turns']) > 0 and \
-             (feature.metadata['history_turns'][0] >= feature.metadata['turn'] - FLAGS.history or \
-             (e_tracker, v_tracker) in large_tfidf_dict):
-                
-            curr_feature = deepcopy(selected_example_features_dict[e_tracker][f_tracker])
-            
-            if not FLAGS.better_hae:
-                curr_feature.history_answer_marker = curr_feature.history_answer_marker + \
-                                                     np.asarray(feature.history_answer_marker)
-                # when the markers have overlaps, the corresponding bit would be 2 after added together. we need to set it to one.
-                curr_feature.history_answer_marker = curr_feature.history_answer_marker != 0
-                curr_feature.history_answer_marker = curr_feature.history_answer_marker.astype(int)
-                
-            else:
-                curr_feature.history_answer_marker[np.asarray(feature.history_answer_marker) == 1] = \
-                                        int(feature.metadata['turn'] - feature.metadata['history_turns'][0])
-                curr_feature.history_answer_marker = curr_feature.history_answer_marker.astype(int)
-            
-            curr_feature.metadata['history_turns'].append(feature.metadata['history_turns'][0])
-            selected_example_features_dict[e_tracker][f_tracker] = curr_feature
-            
-            if (e_tracker, v_tracker) not in handled_variations:
-                # we always choose the current turn
-                relative_selected_pos.append(0)
-                
-                handled_variations[(e_tracker, v_tracker)] = 1
-                if len(feature.metadata['history_turns']) > 0:
-                    relative_selected_pos.append(feature.metadata['turn'] - feature.metadata['history_turns'][0])
-
-    selected_example_features = []
-    for features in selected_example_features_dict.values():
-        selected_example_features.extend(features)
-        
-    return selected_example_features, relative_selected_pos
+# def get_selected_example_features_without_actions(batch_features, batch_example_tracker, batch_variation_tracker, tfidf_vectorizer=None):
+#
+#     prev_e_tracker, prev_v_tracker = None, None
+#     relative_selected_pos = [] # the relative position of the selected history compared to the current turn
+#     handled_variations = {} # each example variation could have more than one features, but we only store the "relative_selected_pos" once
+#     f_tracker = 0 # feature tracker, denotes the feature index for each variation
+#
+#     large_tfidf_dict = {}
+#     if FLAGS.history_selection == 'tfidf_sim' and FLAGS.more_history != 0:
+#         fd = convert_features_to_feed_dict(batch_features)
+#         tfidf_features = get_tfidf_features(fd['input_ids'], fd['history_answer_marker'], tfidf_vectorizer)
+#         # print('tfidf_features', tfidf_features)
+#         # print('batch_example_tracker', batch_example_tracker)
+#         # print('batch_variation_tracker', batch_variation_tracker)
+#         merged_tfidf, merged_example_tracker, merged_variation_tracker = get_merged_features(
+#                                         tfidf_features, batch_example_tracker, batch_variation_tracker)
+#         # print('merged_tfidf', merged_tfidf)
+#         # print('merged_example_tracker', merged_example_tracker)
+#         # print('merged_variation_tracker', merged_variation_tracker)
+#         tfidf_dict = {}
+#         for tfidf_score, e_tracker, v_tracker in zip(merged_tfidf, merged_example_tracker, merged_variation_tracker):
+#             if e_tracker not in tfidf_dict:
+#                 tfidf_dict[e_tracker] = []
+#             tfidf_dict[e_tracker].append(tfidf_score)
+#         # print('tfidf_dict', tfidf_dict)
+#
+#         for e_tracker, score_list in tfidf_dict.items():
+#             score_list_arg_sorted = np.argsort(np.asarray(score_list))
+#             selected_variation_ids = score_list_arg_sorted[- FLAGS.more_history :]
+#             for v_id in selected_variation_ids:
+#                 if tfidf_dict[e_tracker][v_id] != 0:
+#                     large_tfidf_dict[(e_tracker, v_id)] = True
+#         # print('large_tfidf_dict', large_tfidf_dict)
+#
+#     selected_example_features_dict = {}
+#     for feature, e_tracker, v_tracker in zip(batch_features, batch_example_tracker, batch_variation_tracker):
+#         # get the f_tracker
+#         if e_tracker == prev_e_tracker and v_tracker == prev_v_tracker:
+#             f_tracker += 1
+#         else:
+#             f_tracker = 0
+#         prev_e_tracker, prev_v_tracker = e_tracker, v_tracker
+#
+#         # we append a feature that is without any history, so we can build upon this if other histories are chosen
+#         if e_tracker not in selected_example_features_dict:
+#             feature_without_marker = deepcopy(feature)
+#             feature_without_marker.history_answer_marker = np.zeros(len(feature.history_answer_marker))
+#             feature_without_marker.metadata['history_turns'] = []
+#             selected_example_features_dict[e_tracker] = [feature_without_marker]
+#         elif f_tracker >= len(selected_example_features_dict[e_tracker]):
+#             feature_without_marker = deepcopy(feature)
+#             feature_without_marker.history_answer_marker = np.zeros(len(feature.history_answer_marker))
+#             feature_without_marker.metadata['history_turns'] = []
+#             selected_example_features_dict[e_tracker].append(feature_without_marker)
+#
+#         # add history answer markers, a turn is selected if it either in immediate previous j turns or have large tfidf score
+#         if len(feature.metadata['history_turns']) > 0 and \
+#              (feature.metadata['history_turns'][0] >= feature.metadata['turn'] - FLAGS.history or \
+#              (e_tracker, v_tracker) in large_tfidf_dict):
+#
+#             curr_feature = deepcopy(selected_example_features_dict[e_tracker][f_tracker])
+#
+#             if not FLAGS.better_hae:
+#                 curr_feature.history_answer_marker = curr_feature.history_answer_marker + \
+#                                                      np.asarray(feature.history_answer_marker)
+#                 # when the markers have overlaps, the corresponding bit would be 2 after added together. we need to set it to one.
+#                 curr_feature.history_answer_marker = curr_feature.history_answer_marker != 0
+#                 curr_feature.history_answer_marker = curr_feature.history_answer_marker.astype(int)
+#
+#             else:
+#                 curr_feature.history_answer_marker[np.asarray(feature.history_answer_marker) == 1] = \
+#                                         int(feature.metadata['turn'] - feature.metadata['history_turns'][0])
+#                 curr_feature.history_answer_marker = curr_feature.history_answer_marker.astype(int)
+#
+#             curr_feature.metadata['history_turns'].append(feature.metadata['history_turns'][0])
+#             selected_example_features_dict[e_tracker][f_tracker] = curr_feature
+#
+#             if (e_tracker, v_tracker) not in handled_variations:
+#                 # we always choose the current turn
+#                 relative_selected_pos.append(0)
+#
+#                 handled_variations[(e_tracker, v_tracker)] = 1
+#                 if len(feature.metadata['history_turns']) > 0:
+#                     relative_selected_pos.append(feature.metadata['turn'] - feature.metadata['history_turns'][0])
+#
+#     selected_example_features = []
+#     for features in selected_example_features_dict.values():
+#         selected_example_features.extend(features)
+#
+#     return selected_example_features, relative_selected_pos
 
 def get_features_to_be_selected(batch_features, batch_example_tracker, batch_variation_tracker):
     # features that generated by the first question of a dialog do not have histories. 
@@ -456,25 +463,25 @@ def get_discounted_future_rewards(ep_rewards):
 
     return discounted_ep_rs
 
-def get_tfidf_features(sub_batch_input_ids, sub_batch_history_answer_marker, tfidf_vectorizer):
-    questions, histories = [], []
-    for input_ids, history_answer_marker in zip(sub_batch_input_ids, sub_batch_history_answer_marker):
-        sep_idx = input_ids.index(102)
-        question = input_ids[1:sep_idx]
-        questions.append(' '.join(map(str, question)))
-        
-        history_answer_idx = np.asarray(history_answer_marker) == 1
-        history = np.asarray(input_ids)[history_answer_idx]
-        histories.append(' '.join(map(str, history.tolist())))
-    
-    questions_tfidf = tfidf_vectorizer.transform(questions)
-    histories_tfidf = tfidf_vectorizer.transform(histories)
-    
-    cosine = []
-    for q, h in zip(questions_tfidf, histories_tfidf):
-        cosine.append(cosine_similarity(q, h)[0][0])
-        
-    return cosine
+# def get_tfidf_features(sub_batch_input_ids, sub_batch_history_answer_marker, tfidf_vectorizer):
+#     questions, histories = [], []
+#     for input_ids, history_answer_marker in zip(sub_batch_input_ids, sub_batch_history_answer_marker):
+#         sep_idx = input_ids.index(102)
+#         question = input_ids[1:sep_idx]
+#         questions.append(' '.join(map(str, question)))
+#
+#         history_answer_idx = np.asarray(history_answer_marker) == 1
+#         history = np.asarray(input_ids)[history_answer_idx]
+#         histories.append(' '.join(map(str, history.tolist())))
+#
+#     questions_tfidf = tfidf_vectorizer.transform(questions)
+#     histories_tfidf = tfidf_vectorizer.transform(histories)
+#
+#     cosine = []
+#     for q, h in zip(questions_tfidf, histories_tfidf):
+#         cosine.append(cosine_similarity(q, h)[0][0])
+#
+#     return cosine
 
 def get_state_dim(state_features):
     features_dim = [None, 768, 2, 3, 1] # how many dims for each feature
