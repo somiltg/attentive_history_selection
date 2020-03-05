@@ -18,33 +18,24 @@ from __future__ import print_function
 
 import collections
 import json
-import math
 import os
-import modeling
-import optimization
-import tokenization
-import six
-import tensorflow as tf
-import numpy as np
-from copy import deepcopy
 import pickle
-import itertools
-from time import time
 import traceback
 
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
-
-from cqa_supports import *
+import modeling
+import numpy as np
+import tensorflow as tf
+import tokenization
 from cqa_flags import FLAGS
-from cqa_model import *
 from cqa_gen_batches import *
+from cqa_model import *
 from cqa_rl_supports import *
+from cqa_supports import *
 
 if FLAGS.dataset.lower() == 'coqa':
     from official_evaluation import external_call # coqa official evaluation script
 elif FLAGS.dataset.lower() == 'quac':
-    from scorer import external_call, external_call_for_reward # quac official evaluation script
+    from scorer import external_call  # quac official evaluation script
 
 
 # In[3]:
