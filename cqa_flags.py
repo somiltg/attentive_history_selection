@@ -24,34 +24,34 @@ flags.DEFINE_string('f', '', 'kernel')
 # BERT-base
 
 flags.DEFINE_string(
-    "bert_config_file", "/mnt/scratch/chenqu/bert/uncased_L-12_H-768_A-12/bert_config.json",
+    "bert_config_file", "../bert/model_52000/bert_config.json",
     "The config json file corresponding to the pre-trained BERT model. "
     "This specifies the model architecture.")
 
-flags.DEFINE_string("vocab_file", "/mnt/scratch/chenqu/bert/uncased_L-12_H-768_A-12/vocab.txt",
+flags.DEFINE_string("vocab_file", "../bert/model_52000/vocab.txt",
                     "The vocabulary file that the BERT model was trained on.")
 
 flags.DEFINE_string(
-    "init_checkpoint", "/mnt/scratch/chenqu/bert/uncased_L-12_H-768_A-12/bert_model.ckpt",
+    "init_checkpoint", "../bert/model_52000/model_52000.ckpt",
     "Initial checkpoint (usually from a pre-trained BERT model).")
 
 flags.DEFINE_string(
-    "output_dir", "/mnt/scratch/chenqu/bert_out/100000/",
+    "output_dir", "../bert/bert_out/10001/",
     "The output directory where the model checkpoints will be written.")
 
 ## Other parameters
-flags.DEFINE_string("coqa_train_file", "/mnt/scratch/chenqu/coqa_extractive_gt/coqa-train-v1.0.json",
+flags.DEFINE_string("coqa_train_file", "../coqa/coqa-train-v1.0.json",
                     "CoQA json for training. E.g., coqa-train-v1.0.json")
 
 flags.DEFINE_string(
-    "coqa_predict_file", "/mnt/scratch/chenqu/coqa_extractive_gt/coqa-dev-v1.0.json",
+    "coqa_predict_file", "../coqa/coqa-dev-v1.0.json",
     "CoQA json for predictions. E.g., dev-v1.1.json or test-v1.1.json")
 
-flags.DEFINE_string("quac_train_file", "/mnt/scratch/chenqu/quac_original/train_v0.2.json",
+flags.DEFINE_string("quac_train_file", "../quac/train_v0.2.json",
                     "QuAC json for training.")
 
 flags.DEFINE_string(
-    "quac_predict_file", "/mnt/scratch/chenqu/quac_original/val_v0.2.json",
+    "quac_predict_file", "../quac/val_v0.2.json",
     "QuAC json for predictions.")
 
 
@@ -80,9 +80,9 @@ flags.DEFINE_bool("do_train", True, "Whether to run training.")
 
 flags.DEFINE_bool("do_predict", True, "Whether to run eval on the dev set.")
 
-flags.DEFINE_integer("train_batch_size", 12, "Total batch size for training.")
+flags.DEFINE_integer("train_batch_size", 16, "Total batch size for training.")
 
-flags.DEFINE_integer("predict_batch_size", 12,
+flags.DEFINE_integer("predict_batch_size", 16,
                      "Total batch size for predictions.")
 
 flags.DEFINE_float("learning_rate", 3e-5, "The initial learning rate for Adam.")
@@ -91,7 +91,7 @@ flags.DEFINE_float("num_train_epochs", 2.0,
                    "Total number of training epochs to perform.")
 
 flags.DEFINE_float(
-    "warmup_proportion", 0.0,
+    "warmup_proportion", 0.1,
     "Proportion of training to perform linear learning rate warmup for. "
     "E.g., 0.1 = 10% of training.")
 
@@ -117,7 +117,8 @@ flags.DEFINE_integer(
     "The maximum length of an answer that can be generated. This is needed "
     "because the start and end predictions are not conditioned on one another.")
 
-flags.DEFINE_bool("use_tpu", False, "Whether to use TPU or GPU/CPU.")
+flags.DEFINE_bool(""
+                  "", True, "Whether to use TPU or GPU/CPU.")
 
 tf.flags.DEFINE_string(
     "tpu_name", None,
@@ -191,7 +192,7 @@ flags.DEFINE_integer(
 flags.DEFINE_integer("example_batch_size", 4, "when using RL, we want the batch size to be smaller because one example can gen multiple features")
 
 flags.DEFINE_string(
-    "cache_dir", "/mnt/scratch/chenqu/test_ham_cache/",
+    "cache_dir", "../ham_cache/",
     "we store generated features here, so that we do not need to generate them every time")
 
 flags.DEFINE_integer(
@@ -224,7 +225,7 @@ flags.DEFINE_integer(
     "applicable for the interaction matrix (tokens)")
 
 flags.DEFINE_string(
-    "glove", '/mnt/scratch/chenqu/glove/glove.840B.300d.pkl',
+    "glove", '../glove/glove.840B.300d.txt',
     "glove pre-trained word embedding, we use 840B.300d")
 
 flags.DEFINE_integer(
@@ -285,4 +286,4 @@ flags.DEFINE_bool("append_self", False, "when converting an example to variation
 
 flags.DEFINE_float("null_score_diff_threshold", 0.0, "null_score_diff_threshold")
 
-flags.DEFINE_integer("bert_hidden", 768, "bert hidden units, 768 or 1024")
+flags.DEFINE_integer("bert_hidden", 1024, "bert hidden units, 768 or 1024")
