@@ -11,10 +11,7 @@ FLAGS = flags.FLAGS
 # for running in jupyter env
 flags.DEFINE_string('f', '', 'kernel')
 
-# Required parameters
-
-# BERT-base
-
+## Required parameters
 flags.DEFINE_string(
     "bert_config_file", "../bert/model_52000/bert_config.json",
     "The config json file corresponding to the pre-trained BERT model. "
@@ -24,11 +21,7 @@ flags.DEFINE_string("vocab_file", "../bert/model_52000/vocab.txt",
                     "The vocabulary file that the BERT model was trained on.")
 
 flags.DEFINE_string(
-    "init_checkpoint", "../bert/model_52000/model_52000.ckpt",
-    "Initial checkpoint (usually from a pre-trained BERT model).")
-
-flags.DEFINE_string(
-    "output_dir", "../bert/bert_out/10001/",
+    "output_dir", "../bert/model_52000/model_52000.ckpt",
     "The output directory where the model checkpoints will be written.")
 
 ## Other parameters
@@ -46,6 +39,9 @@ flags.DEFINE_string(
     "quac_predict_file", "../quac/val_v0.2.json",
     "QuAC json for predictions.")
 
+flags.DEFINE_string(
+    "init_checkpoint", "../bert/bert_out/10001/",
+    "Initial checkpoint (usually from a pre-trained BERT model).")
 
 flags.DEFINE_bool(
     "do_lower_case", True,
@@ -53,7 +49,7 @@ flags.DEFINE_bool(
     "models and False for cased models.")
 
 flags.DEFINE_integer(
-    "max_seq_length", 384, # 384
+    "max_seq_length", 384,
     "The maximum total input sequence length after WordPiece tokenization. "
     "Sequences longer than this will be truncated, and sequences shorter "
     "than this will be padded.")
@@ -77,7 +73,7 @@ flags.DEFINE_integer("train_batch_size", 16, "Total batch size for training.")
 flags.DEFINE_integer("predict_batch_size", 16,
                      "Total batch size for predictions.")
 
-flags.DEFINE_float("learning_rate", 3e-5, "The initial learning rate for Adam.")
+flags.DEFINE_float("learning_rate", 5e-5, "The initial learning rate for Adam.")
 
 flags.DEFINE_float("num_train_epochs", 2.0,
                    "Total number of training epochs to perform.")
@@ -90,10 +86,10 @@ flags.DEFINE_float(
 flags.DEFINE_integer("save_checkpoints_steps", 1000,
                      "How often to save the model checkpoint.")
 
-flags.DEFINE_integer("evaluation_steps", 5,
+flags.DEFINE_integer("evaluation_steps", 1000,
                      "How often to do evaluation.")
 
-flags.DEFINE_integer("evaluate_after", 4,
+flags.DEFINE_integer("evaluate_after", 18000,
                      "we do evaluation after centain steps.")
 
 flags.DEFINE_integer("iterations_per_loop", 1000,
@@ -105,7 +101,7 @@ flags.DEFINE_integer(
     "nbest_predictions.json output file.")
 
 flags.DEFINE_integer(
-    "max_answer_length", 40,
+    "max_answer_length", 50,
     "The maximum length of an answer that can be generated. This is needed "
     "because the start and end predictions are not conditioned on one another.")
 
@@ -142,9 +138,7 @@ flags.DEFINE_bool(
 
 flags.DEFINE_integer(
     "history", 6,
-    "Number of conversation history to use. applicable to the 'previous_j rule'"
-)
-
+    "Number of conversation history to use.")
 
 flags.DEFINE_bool(
     "only_history_answer", True,
@@ -156,67 +150,102 @@ flags.DEFINE_bool(
     "This flag surpasses the only_history_answer flag.")
 
 flags.DEFINE_bool(
-    "load_small_portion", True,
+    "load_small_portion", False,
     "during develping, we only want to load a very small portion of "
     "the data to see if the code works.")
 
-# no longer used
 flags.DEFINE_bool(
-    "use_RL", False,
+    "use_RL", True,
     "whether to use the reinforced backtracker."
     "this flag supasses the history flag, because we will choose history freely with RL")
 
 flags.DEFINE_string(
     "dataset", 'quac',
-    "QuAC")
+    "QuAC or CoQA")
 
-# only used in history attention
+# no longer used
 flags.DEFINE_integer(
     "max_history_turns", 11,
     "what is the max history turns a question can have "
     "e.g. in QuAC data, a dialog has a maximum of 12 turns,"
-    "so a question has a maximum of 11 history turns"
-    "however, if FLAGS.append_self is True, we need to set it to 12 "
-    "because the variation without history is considered as a 'turn rep'") 
+    "so a question has a maximum of 11 history turns") 
 
 # no longer used
 flags.DEFINE_integer("example_batch_size", 4, "when using RL, we want the batch size to be smaller because one example can gen multiple features")
 
 flags.DEFINE_string(
-    "cache_dir", "../ham_cache/",
+    "cache_dir", "/mnt/nfs/work1/croft/chenqu/bert_out/cache_support_cannotanswer_large/",
     "we store generated features here, so that we do not need to generate them every time")
 
 flags.DEFINE_integer(
-    "max_considered_history_turns", 11,
-    "we only consider k history turns that immediately proceed the current turn, when generating preprocessed features,"
+    "pretrain_steps", 2000,
+    "we pretrain the CQA model for some steps before the reinforced backtracker kicks in")
+
+flags.DEFINE_integer(
+    "episode_steps", 1000,
+    "we use a validation subset to generate reward, we change this set every k steps")
+
+flags.DEFINE_integer(
+    "reward_set_batches_num", 3,
+    "for every training step, we run k validation steps on a validation subset to get reward,"
     "training will be slow if this is set to a large number")
 
 flags.DEFINE_integer(
-    "train_steps", 20,
+    "max_considered_history_turns", 11,
+    "we only consider k history turns that immediately proceed the current turn,"
+    "training will be slow if this is set to a large number")
+
+flags.DEFINE_integer(
+    "save_actions_and_states_step", 22000,
+    "we store the states and actions when training is almost done for visulazation")
+
+flags.DEFINE_float("history_penalty", 0.000,
+             "how much we want to penalize the reinforced backtracker when it selects to much history")
+
+flags.DEFINE_bool(
+    "actor_critic", False,
+    "True: actor critic, False: REINFORCE")
+
+flags.DEFINE_float("reward_decay", 0.8, "reward discount factor")
+
+flags.DEFINE_string(
+    "state_features", "1234",
+    "1: bert_representations, 2: start, end probs, 3: cur_turn, his_turn, diff, 4: tfidf cosine")
+
+flags.DEFINE_string(
+    "reward_type", "loss",
+    "loss: the loss gap on reward set, f1: the f1 on reward set")
+
+flags.DEFINE_integer(
+    "train_steps", 22000,
     "loss: the loss gap on reward set, f1: the f1 on reward set")
 
 flags.DEFINE_bool(
-    "better_hae", True,
-    "assign different history answer embedding to differet previous turns (PosHAE)")
+    "better_hae", False,
+    "assign different history answer embedding to differet previous turns")
 
 flags.DEFINE_string(
-    "history_selection", "previous_j", ""
+    "history_selection", "tfidf_sim",
+    "previous_j: select the immediate previous j turns"
+    "tfidf_sim: select FLAGS.more_history turns according to the ranking of "
+    "cosine similarity better the current question and a history answer."
+    "RL: reinforcement learning"
 )
 
 flags.DEFINE_integer(
-    "more_history", 0,
+    "more_history", 2,
     "Number of conversation history to use. applicable to other rules except for previous_j")
 
 flags.DEFINE_integer(
     "max_question_len_for_matching", 20,
-    "applicable for the interaction matrix (tokens)")
+    "applicable for the interaction matrix")
 
 flags.DEFINE_integer(
     "max_answer_len_for_matching", 40,
-    "applicable for the interaction matrix (tokens)")
+    "applicable for the interaction matrix")
 
 flags.DEFINE_string(
-    "glove", '../glove/glove.840B.300d.txt',
+    "glove", '/mnt/nfs/work1/croft/chenqu/glove/glove.840B.300d.pkl',
     "glove pre-trained word embedding, we use 840B.300d")
 
 flags.DEFINE_integer(
@@ -237,11 +266,11 @@ flags.DEFINE_integer(
 
 flags.DEFINE_float("rl_learning_rate", 1e-4, "The initial learning rate for the policy net and value net.")
 
-flags.DEFINE_bool("MTL", True, "multi-task learning. jointly learn the dialog acts (followup, yesno)")
+flags.DEFINE_bool("MTL", False, "multi-task learning. jointly learn the dialog acts (followup, yesno)")
 
-flags.DEFINE_float("MTL_lambda", 0.1, "total loss = (1 - 2 * lambda) * convqa_loss + lambda * followup_loss + lambda * yesno_loss")
+flags.DEFINE_float("MTL_lambda", 0.0, "total loss = (1 - 2 * lambda) * convqa_loss + lambda * followup_loss + lambda * yesno_loss")
 
-flags.DEFINE_float("MTL_mu", 0.8, "total loss = mu * convqa_loss + lambda * followup_loss + lambda * yesno_loss")
+flags.DEFINE_float("MTL_mu", 0.0, "total loss = mu * convqa_loss + lambda * followup_loss + lambda * yesno_loss")
 
 flags.DEFINE_integer(
     "ideal_selected_num", 1,
@@ -255,11 +284,11 @@ flags.DEFINE_bool("aux_shared", False, "wheter to share the aux prediction layer
 
 flags.DEFINE_bool("disable_attention", False, "dialable the history attention module")
 
-flags.DEFINE_bool("history_attention_hidden", False, "include hidden layers for the history att module")
+flags.DEFINE_bool("history_attention_hidden", False, "dialable the history attention module")
 
-flags.DEFINE_string("history_attention_input", "reduce_mean", "CLS, reduce_mean, reduce_max")
+flags.DEFINE_string("history_attention_input", "CLS", "CLS, reduce_mean, reduce_max")
 
-flags.DEFINE_string("mtl_input", "reduce_mean", "CLS, reduce_mean, reduce_max")
+flags.DEFINE_string("mtl_input", "CLS", "CLS, reduce_mean, reduce_max")
 
 flags.DEFINE_integer("history_ngram", 1, 
                "in history attention, we attend to groups of history turns, this param indicate how many histories in one group"
@@ -271,10 +300,10 @@ flags.DEFINE_bool("front_padding", False, "pad the BERT input sequence at the fr
 
 flags.DEFINE_bool("freeze_bert", False, "freeze BERT")
 
-flags.DEFINE_bool("fine_grained_attention", True, "use fine grained attention")
+flags.DEFINE_bool("fine_grained_attention", False, "use fine grained attention")
 
 flags.DEFINE_bool("append_self", False, "when converting an example to variations, whether to append a variation without any history (self)")
 
-flags.DEFINE_float("null_score_diff_threshold", 0.0, "null_score_diff_threshold")
+flags.DEFINE_float("null_score_diff_threshold", 1.8, "null_score_diff_threshold")
 
 flags.DEFINE_integer("bert_hidden", 1024, "bert hidden units, 768 or 1024")

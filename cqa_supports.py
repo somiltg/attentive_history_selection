@@ -5,16 +5,14 @@ from __future__ import print_function
 import collections
 import json
 import math
-import os
-import modeling
-import optimization
-import tokenization
+from copy import deepcopy
+
+import numpy as np
 import six
 import tensorflow as tf
-from copy import deepcopy
-import numpy as np
-
+import tokenization
 from cqa_flags import FLAGS
+
 
 class CQAExample(object):
     """A single training/test example."""
