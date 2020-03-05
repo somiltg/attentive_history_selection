@@ -174,7 +174,7 @@ flags.DEFINE_integer(
 flags.DEFINE_integer("example_batch_size", 4, "when using RL, we want the batch size to be smaller because one example can gen multiple features")
 
 flags.DEFINE_string(
-    "cache_dir", "/mnt/nfs/work1/croft/chenqu/bert_out/cache_support_cannotanswer_large/",
+    "cache_dir", "./cache_large/",
     "we store generated features here, so that we do not need to generate them every time")
 
 flags.DEFINE_integer(
@@ -245,7 +245,7 @@ flags.DEFINE_integer(
     "applicable for the interaction matrix")
 
 flags.DEFINE_string(
-    "glove", '/mnt/nfs/work1/croft/chenqu/glove/glove.840B.300d.pkl',
+    "glove", '../glove/glove.840B.300d.pkl',
     "glove pre-trained word embedding, we use 840B.300d")
 
 flags.DEFINE_integer(
