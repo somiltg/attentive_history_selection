@@ -21,7 +21,7 @@ flags.DEFINE_string("vocab_file", "../bert/model_52000/vocab.txt",
                     "The vocabulary file that the BERT model was trained on.")
 
 flags.DEFINE_string(
-    "output_dir", "../bert/model_52000/model_52000.ckpt",
+    "output_dir", "../bert/bert_out/10001/",
     "The output directory where the model checkpoints will be written.")
 
 ## Other parameters
@@ -40,7 +40,7 @@ flags.DEFINE_string(
     "QuAC json for predictions.")
 
 flags.DEFINE_string(
-    "init_checkpoint", "../bert/bert_out/10001/",
+    "init_checkpoint", "../bert/model_52000/model_52000.ckpt",
     "Initial checkpoint (usually from a pre-trained BERT model).")
 
 flags.DEFINE_bool(
