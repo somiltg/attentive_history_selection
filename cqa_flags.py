@@ -105,7 +105,7 @@ flags.DEFINE_integer(
     "The maximum length of an answer that can be generated. This is needed "
     "because the start and end predictions are not conditioned on one another.")
 
-flags.DEFINE_bool("use_tpu", True, "Whether to use TPU or GPU/CPU.")
+flags.DEFINE_bool("use_tpu", False, "Whether to use TPU or GPU/CPU.")
 
 tf.flags.DEFINE_string(
     "tpu_name", None,
@@ -168,10 +168,11 @@ flags.DEFINE_integer(
     "max_history_turns", 11,
     "what is the max history turns a question can have "
     "e.g. in QuAC data, a dialog has a maximum of 12 turns,"
-    "so a question has a maximum of 11 history turns") 
+    "so a question has a maximum of 11 history turns")
 
 # no longer used
-flags.DEFINE_integer("example_batch_size", 4, "when using RL, we want the batch size to be smaller because one example can gen multiple features")
+flags.DEFINE_integer("example_batch_size", 4,
+                     "when using RL, we want the batch size to be smaller because one example can gen multiple features")
 
 flags.DEFINE_string(
     "cache_dir", "./cache_large/",
@@ -200,7 +201,7 @@ flags.DEFINE_integer(
     "we store the states and actions when training is almost done for visulazation")
 
 flags.DEFINE_float("history_penalty", 0.000,
-             "how much we want to penalize the reinforced backtracker when it selects to much history")
+                   "how much we want to penalize the reinforced backtracker when it selects to much history")
 
 flags.DEFINE_bool(
     "actor_critic", False,
@@ -268,7 +269,8 @@ flags.DEFINE_float("rl_learning_rate", 1e-4, "The initial learning rate for the 
 
 flags.DEFINE_bool("MTL", False, "multi-task learning. jointly learn the dialog acts (followup, yesno)")
 
-flags.DEFINE_float("MTL_lambda", 0.0, "total loss = (1 - 2 * lambda) * convqa_loss + lambda * followup_loss + lambda * yesno_loss")
+flags.DEFINE_float("MTL_lambda", 0.0,
+                   "total loss = (1 - 2 * lambda) * convqa_loss + lambda * followup_loss + lambda * yesno_loss")
 
 flags.DEFINE_float("MTL_mu", 0.0, "total loss = mu * convqa_loss + lambda * followup_loss + lambda * yesno_loss")
 
@@ -290,11 +292,12 @@ flags.DEFINE_string("history_attention_input", "CLS", "CLS, reduce_mean, reduce_
 
 flags.DEFINE_string("mtl_input", "CLS", "CLS, reduce_mean, reduce_max")
 
-flags.DEFINE_integer("history_ngram", 1, 
-               "in history attention, we attend to groups of history turns, this param indicate how many histories in one group"
-               "if set to 1, it's equivalent to attend to every history turns independently"     )
+flags.DEFINE_integer("history_ngram", 1,
+                     "in history attention, we attend to groups of history turns, this param indicate how many histories in one group"
+                     "if set to 1, it's equivalent to attend to every history turns independently")
 
-flags.DEFINE_bool("reformulate_question", False, "prepend the immediate previous history question to the current question")
+flags.DEFINE_bool("reformulate_question", False,
+                  "prepend the immediate previous history question to the current question")
 
 flags.DEFINE_bool("front_padding", False, "pad the BERT input sequence at the front")
 
@@ -302,7 +305,8 @@ flags.DEFINE_bool("freeze_bert", False, "freeze BERT")
 
 flags.DEFINE_bool("fine_grained_attention", False, "use fine grained attention")
 
-flags.DEFINE_bool("append_self", False, "when converting an example to variations, whether to append a variation without any history (self)")
+flags.DEFINE_bool("append_self", False,
+                  "when converting an example to variations, whether to append a variation without any history (self)")
 
 flags.DEFINE_float("null_score_diff_threshold", 1.8, "null_score_diff_threshold")
 

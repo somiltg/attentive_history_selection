@@ -85,7 +85,8 @@ class InputFeatures(object):
         self.end_position = end_position
         self.history_answer_marker = history_answer_marker
         self.metadata = metadata
-        
+
+
 def read_quac_examples(input_file, is_training):
     """Read a QuAC json file into a list of CQAExample."""
     with tf.gfile.Open(input_file, "r") as reader:
@@ -118,40 +119,40 @@ def read_quac_examples(input_file, is_training):
                     doc_tokens[-1] += c
                 prev_is_whitespace = False
             char_to_word_offset.append(len(doc_tokens) - 1)
-            
+
         ############################################################
         # convert the convasational QAs to squad format, with history
         ############################################################
 
-        questions = [(item['question'], item['id']) for item in entry['qas']] # [(question, question_id), ()]
+        questions = [(item['question'], item['id']) for item in entry['qas']]  # [(question, question_id), ()]
         answers = [(item['orig_answer']['text'], item['orig_answer']['answer_start']) for item in entry['qas']]
         followups = [item['followup'] for item in entry['qas']]
         yesnos = [item['yesno'] for item in entry['qas']]
 
         qas = []
         for i, (question, answer, followup, yesno) in enumerate(zip(questions, answers, followups, yesnos)):
-            metadata = {'turn': i + 1, 'history_turns': [], 'tok_history_answer_markers':[], 
+            metadata = {'turn': i + 1, 'history_turns': [], 'tok_history_answer_markers': [],
                         'followup': followup, 'yesno': yesno, 'history_turns_text': []}
             # if FLAGS.use_RL:
             #     start_index = 0
             # else:
             #     start_index = 0 if i - int(FLAGS.history) < 0 else i - int(FLAGS.history)
-            
+
             end_index = i
             question_with_histories = ''
-            
+
             history_answer_marker = None
             if FLAGS.use_history_answer_marker:
-                start_index = 0 # we read all the histories no matter we use RL or not. we will make approporiate selections afterwards
+                start_index = 0  # we read all the histories no matter we use RL or not. we will make approporiate selections afterwards
                 history_answer_marker = []
                 for history_turn, (each_answer, each_question) in enumerate(
-                    zip(answers[start_index: end_index], questions[start_index: end_index])):
-                    
+                        zip(answers[start_index: end_index], questions[start_index: end_index])):
                     # [history_answer_start, history_answer_end, history_answer_text]
                     each_marker = [each_answer[1], each_answer[1] + len(each_answer[0]), each_answer[0]]
                     history_answer_marker.append(each_marker)
                     metadata['history_turns'].append(history_turn + start_index + 1)
-                    metadata['history_turns_text'].append((each_question[0], each_answer[0])) #[(q1, a1), (q2, a2), ...]
+                    metadata['history_turns_text'].append(
+                        (each_question[0], each_answer[0]))  # [(q1, a1), (q2, a2), ...]
             else:
                 # prepend historical questions and answers
                 start_index = max(end_index - FLAGS.history, 0)
@@ -159,11 +160,13 @@ def read_quac_examples(input_file, is_training):
                     for each_answer in answers[start_index: end_index]:
                         question_with_histories += each_answer[0] + ' '
                 else:
-                    for each_question, each_answer in zip(questions[start_index: end_index], answers[start_index: end_index]):
+                    for each_question, each_answer in zip(questions[start_index: end_index],
+                                                          answers[start_index: end_index]):
                         question_with_histories += each_question[0] + ' ' + each_answer[0] + ' '
             # add the current question
             question_with_histories += question[0]
-            qas.append({'id': question[1], 'question': question_with_histories, 'answers': [{'answer_start': answer[1], 'text': answer[0]}],
+            qas.append({'id': question[1], 'question': question_with_histories,
+                        'answers': [{'answer_start': answer[1], 'text': answer[0]}],
                         'history_answer_marker': history_answer_marker, 'metadata': metadata})
 
         for qa in qas:
@@ -172,7 +175,7 @@ def read_quac_examples(input_file, is_training):
             start_position = None
             end_position = None
             orig_answer_text = None
-            
+
             # if is_training:
             # we read in the groundtruth answer bothing druing training and predicting, because we need to compute acc and f1 at predicting time.
             if len(qa["answers"]) != 1:
@@ -193,12 +196,12 @@ def read_quac_examples(input_file, is_training):
             actual_text = " ".join(doc_tokens[start_position:(end_position + 1)])
             cleaned_answer_text = " ".join(
                 tokenization.whitespace_tokenize(orig_answer_text))
-            
+
             if is_training and actual_text.find(cleaned_answer_text) == -1:
                 tf.logging.warning("Could not find answer: '%s' vs. '%s'",
                                    actual_text, cleaned_answer_text)
                 continue
-                
+
             # we construct a tok_history_answer_marker to store the aggregated history answer markers for a question.
             # we also construct each_tok_history_answer_marker to store a single history answer marker.
             tok_history_answer_marker = [0] * len(doc_tokens)
@@ -214,16 +217,17 @@ def read_quac_examples(input_file, is_training):
                     history_cleaned_answer_text = " ".join(tokenization.whitespace_tokenize(history_orig_answer_text))
                     if history_actual_text.find(history_cleaned_answer_text) != -1:
                         tok_history_answer_marker = tok_history_answer_marker[: history_start_position] + \
-                                            [1] * (history_end_position - history_start_position + 1) + \
-                                            tok_history_answer_marker[history_end_position + 1 :]
+                                                    [1] * (history_end_position - history_start_position + 1) + \
+                                                    tok_history_answer_marker[history_end_position + 1:]
                         each_tok_history_answer_marker = each_tok_history_answer_marker[: history_start_position] + \
-                                            [1] * (history_end_position - history_start_position + 1) + \
-                                            each_tok_history_answer_marker[history_end_position + 1 :]
+                                                         [1] * (history_end_position - history_start_position + 1) + \
+                                                         each_tok_history_answer_marker[history_end_position + 1:]
                         assert len(tok_history_answer_marker) == len(doc_tokens)
                         assert len(each_tok_history_answer_marker) == len(doc_tokens)
                         qa['metadata']['tok_history_answer_markers'].append(each_tok_history_answer_marker)
                     else:
-                        tf.logging.warning("Could not find history answer: '%s' vs. '%s'", history_actual_text, history_cleaned_answer_text)                                    
+                        tf.logging.warning("Could not find history answer: '%s' vs. '%s'", history_actual_text,
+                                           history_cleaned_answer_text)
 
             example = CQAExample(
                 qas_id=qas_id,
@@ -237,6 +241,7 @@ def read_quac_examples(input_file, is_training):
             examples.append(example)
             # print(example)
     return examples
+
 
 def read_coqa_examples(input_file, is_training):
     """Read a CoQA json file into a list of CQAExample."""
@@ -255,7 +260,7 @@ def read_coqa_examples(input_file, is_training):
         tf.logging.warning('<<<<<<<<<< load_small_portion is on! >>>>>>>>>>')
     for entry in input_data:
         # we add a additional "unknown" token for the unanswerable questions
-        
+
         paragraph_text = entry["story"] + ' unknown'
         doc_tokens = []
         char_to_word_offset = []
@@ -270,25 +275,26 @@ def read_coqa_examples(input_file, is_training):
                     doc_tokens[-1] += c
                 prev_is_whitespace = False
             char_to_word_offset.append(len(doc_tokens) - 1)
-            
+
         ############################################################
         # convert the convasational QAs to squad format, with history
         ############################################################
 
         story_id = entry['id']
-        questions = [(item['input_text'], story_id + str(item['turn_id'])) for item in entry['questions']] # [(question, question_id), ()]
+        questions = [(item['input_text'], story_id + str(item['turn_id'])) for item in
+                     entry['questions']]  # [(question, question_id), ()]
         answers = [(item['span_text'], item['span_start']) for item in entry['answers']]
 
         qas = []
         for i, (question, answer) in enumerate(zip(questions, answers)):
-            metadata = {'turn': i + 1, 'history_turns': [], 'tok_history_answer_markers':[]}
+            metadata = {'turn': i + 1, 'history_turns': [], 'tok_history_answer_markers': []}
             # if FLAGS.use_RL:
-                # if we use the reinforced backtracker, we will read in all the history 
-                # that is available to the current question
+            # if we use the reinforced backtracker, we will read in all the history
+            # that is available to the current question
             #     start_index = 0
             # else:
             #     start_index = 0 if i - int(FLAGS.history) < 0 else i - int(FLAGS.history)
-            start_index = 0 # we read all the histories no matter we use RL or not. we will make approporiate selection afterwards
+            start_index = 0  # we read all the histories no matter we use RL or not. we will make approporiate selection afterwards
             end_index = i
             question_with_histories = ''
             # prepend historical questions and answers
@@ -298,7 +304,7 @@ def read_coqa_examples(input_file, is_training):
                 for history_turn, each_answer in enumerate(answers[start_index: end_index]):
                     # [history_answer_start, history_answer_end, history_answer_text]
                     if each_answer[1] == -1:
-                        each_marker = [len(paragraph_text) - 7, len(paragraph_text), each_answer[0]]                        
+                        each_marker = [len(paragraph_text) - 7, len(paragraph_text), each_answer[0]]
                     else:
                         each_marker = [each_answer[1], each_answer[1] + len(each_answer[0]), each_answer[0]]
                     history_answer_marker.append(each_marker)
@@ -308,18 +314,20 @@ def read_coqa_examples(input_file, is_training):
                     for each_answer in answers[start_index: end_index]:
                         question_with_histories += each_answer[0] + ' '
                 else:
-                    for each_question, each_answer in zip(questions[start_index: end_index], answers[start_index: end_index]):
+                    for each_question, each_answer in zip(questions[start_index: end_index],
+                                                          answers[start_index: end_index]):
                         question_with_histories += each_question[0] + ' ' + each_answer[0] + ' '
             # add the current question
             question_with_histories += question[0]
             if answer[1] == -1:
                 # if the question is unanswerable, we makr the answer as the "unknown" token
-                qas.append({'id': question[1], 'question': question_with_histories, 
-                         'answers': [{'answer_start': len(paragraph_text) - 7, 'text': "unknown"}],
-                         'history_answer_marker': history_answer_marker, 'metadata': metadata})
+                qas.append({'id': question[1], 'question': question_with_histories,
+                            'answers': [{'answer_start': len(paragraph_text) - 7, 'text': "unknown"}],
+                            'history_answer_marker': history_answer_marker, 'metadata': metadata})
             else:
-                qas.append({'id': question[1], 'question': question_with_histories, 'answers': [{'answer_start': answer[1], 'text': answer[0]}],
-                        'history_answer_marker': history_answer_marker, 'metadata': metadata})
+                qas.append({'id': question[1], 'question': question_with_histories,
+                            'answers': [{'answer_start': answer[1], 'text': answer[0]}],
+                            'history_answer_marker': history_answer_marker, 'metadata': metadata})
 
         for qa in qas:
             qas_id = qa["id"]
@@ -327,7 +335,7 @@ def read_coqa_examples(input_file, is_training):
             start_position = None
             end_position = None
             orig_answer_text = None
-            
+
             # if is_training:
             # we read in the groundtruth answer bothing druing training and predicting, because we need to compute acc and f1 at predicting time.
             if len(qa["answers"]) != 1:
@@ -348,12 +356,12 @@ def read_coqa_examples(input_file, is_training):
             actual_text = " ".join(doc_tokens[start_position:(end_position + 1)])
             cleaned_answer_text = " ".join(
                 tokenization.whitespace_tokenize(orig_answer_text))
-            
+
             if is_training and actual_text.find(cleaned_answer_text) == -1:
                 tf.logging.warning("Could not find answer: '%s' vs. '%s'",
                                    actual_text, cleaned_answer_text)
                 continue
-                
+
             # we construct a tok_history_answer_marker to store the aggregated history answer markers for a question.
             # we also construct each_tok_history_answer_marker to store a single history answer marker.
             tok_history_answer_marker = [0] * len(doc_tokens)
@@ -368,16 +376,17 @@ def read_coqa_examples(input_file, is_training):
                 history_cleaned_answer_text = " ".join(tokenization.whitespace_tokenize(history_orig_answer_text))
                 if history_actual_text.find(history_cleaned_answer_text) != -1:
                     tok_history_answer_marker = tok_history_answer_marker[: history_start_position] + \
-                                        [1] * (history_end_position - history_start_position + 1) + \
-                                        tok_history_answer_marker[history_end_position + 1 :]
+                                                [1] * (history_end_position - history_start_position + 1) + \
+                                                tok_history_answer_marker[history_end_position + 1:]
                     each_tok_history_answer_marker = each_tok_history_answer_marker[: history_start_position] + \
-                                        [1] * (history_end_position - history_start_position + 1) + \
-                                        each_tok_history_answer_marker[history_end_position + 1 :]
+                                                     [1] * (history_end_position - history_start_position + 1) + \
+                                                     each_tok_history_answer_marker[history_end_position + 1:]
                     assert len(tok_history_answer_marker) == len(doc_tokens)
                     assert len(each_tok_history_answer_marker) == len(doc_tokens)
                     qa['metadata']['tok_history_answer_markers'].append(each_tok_history_answer_marker)
                 else:
-                    tf.logging.warning("Could not find history answer: '%s' vs. '%s'", history_actual_text, history_cleaned_answer_text)                                    
+                    tf.logging.warning("Could not find history answer: '%s' vs. '%s'", history_actual_text,
+                                       history_cleaned_answer_text)
 
             example = CQAExample(
                 qas_id=qas_id,
@@ -391,12 +400,12 @@ def read_coqa_examples(input_file, is_training):
             examples.append(example)
             # print(example)
     return examples
-    
+
 
 def convert_examples_to_features(examples, tokenizer, max_seq_length,
                                  doc_stride, max_query_length, is_training):
     """Loads a data file into a list of `InputBatch`s."""
-    
+
     unique_id = 1000000000
 
     features = []
@@ -406,7 +415,7 @@ def convert_examples_to_features(examples, tokenizer, max_seq_length,
 
         if len(query_tokens) > max_query_length:
             query_tokens = query_tokens[0:max_query_length]
-        
+
         history_answer_marker = example.history_answer_marker
         tok_to_orig_index = []
         orig_to_tok_index = []
@@ -422,7 +431,7 @@ def convert_examples_to_features(examples, tokenizer, max_seq_length,
 
         tok_start_position = None
         tok_end_position = None
-        
+
         # if is_training:
         # we do this for both training and predicting, because we need also start/end position at testing time to compute acc and f1
         tok_start_position = orig_to_tok_index[example.start_position]
@@ -452,8 +461,7 @@ def convert_examples_to_features(examples, tokenizer, max_seq_length,
             if start_offset + length == len(all_doc_tokens):
                 break
             start_offset += min(length, doc_stride)
-            
-        
+
         for (doc_span_index, doc_span) in enumerate(doc_spans):
             marker = []
             tokens = []
@@ -492,7 +500,7 @@ def convert_examples_to_features(examples, tokenizer, max_seq_length,
             input_mask = [1] * len(input_ids)
 
             # Zero-pad up to the sequence length.
-            
+
             if FLAGS.front_padding:
                 original_input_ids_length = len(input_ids)
                 input_ids = [0] * (max_seq_length - original_input_ids_length) + input_ids
@@ -518,7 +526,7 @@ def convert_examples_to_features(examples, tokenizer, max_seq_length,
                 # we throw it out, since there is nothing to predict.
                 doc_start = doc_span.start
                 doc_end = doc_span.start + doc_span.length - 1
-                
+
                 #######################
                 # if (example.start_position < doc_start or
                 #     example.end_position < doc_start or
@@ -529,7 +537,7 @@ def convert_examples_to_features(examples, tokenizer, max_seq_length,
                 # start_position = tok_start_position - doc_start + doc_offset
                 # end_position = tok_end_position - doc_start + doc_offset
                 ########################
-                
+
                 out_of_span = False
                 if not (tok_start_position >= doc_start and
                         tok_end_position <= doc_end):
@@ -550,34 +558,34 @@ def convert_examples_to_features(examples, tokenizer, max_seq_length,
                 start_position = tok_start_position - doc_start + doc_offset
                 end_position = tok_end_position - doc_start + doc_offset
 
-#             if example_index < 20:
-#                 tf.logging.info("*** Example ***")
-#                 tf.logging.info("unique_id: %s" % (unique_id))
-#                 tf.logging.info("example_index: %s" % (example_index))
-#                 tf.logging.info("doc_span_index: %s" % (doc_span_index))
-#                 tf.logging.info("tokens: %s" % " ".join(
-#                     [tokenization.printable_text(x) for x in tokens]))
-#                 tf.logging.info("token_to_orig_map: %s" % " ".join(
-#                     ["%d:%d" % (x, y) for (x, y) in six.iteritems(token_to_orig_map)]))
-#                 tf.logging.info("token_is_max_context: %s" % " ".join([
-#                     "%d:%s" % (x, y) for (x, y) in six.iteritems(token_is_max_context)
-#                 ]))
-#                 tf.logging.info("input_ids: %s" % " ".join([str(x) for x in input_ids]))
-#                 tf.logging.info(
-#                     "input_mask: %s" % " ".join([str(x) for x in input_mask]))
-#                 tf.logging.info(
-#                     "segment_ids: %s" % " ".join([str(x) for x in segment_ids]))
-#                 tf.logging.info(
-#                     "marker: %s" % " ".join([str(x) for x in marker]))
-#                 tokens_where_marker_is_true = [token for (token, token_marker) in zip(tokens, marker) if token_marker == 1]
-#                 tf.logging.info("tokens_where_marker_is_true: %s" % " ".join(
-#                     [tokenization.printable_text(x) for x in tokens_where_marker_is_true]))
-#                 if is_training:
-#                     answer_text = " ".join(tokens[start_position:(end_position + 1)])
-#                     tf.logging.info("start_position: %d" % (start_position))
-#                     tf.logging.info("end_position: %d" % (end_position))
-#                     tf.logging.info(
-#                         "answer: %s" % (tokenization.printable_text(answer_text)))
+            #             if example_index < 20:
+            #                 tf.logging.info("*** Example ***")
+            #                 tf.logging.info("unique_id: %s" % (unique_id))
+            #                 tf.logging.info("example_index: %s" % (example_index))
+            #                 tf.logging.info("doc_span_index: %s" % (doc_span_index))
+            #                 tf.logging.info("tokens: %s" % " ".join(
+            #                     [tokenization.printable_text(x) for x in tokens]))
+            #                 tf.logging.info("token_to_orig_map: %s" % " ".join(
+            #                     ["%d:%d" % (x, y) for (x, y) in six.iteritems(token_to_orig_map)]))
+            #                 tf.logging.info("token_is_max_context: %s" % " ".join([
+            #                     "%d:%s" % (x, y) for (x, y) in six.iteritems(token_is_max_context)
+            #                 ]))
+            #                 tf.logging.info("input_ids: %s" % " ".join([str(x) for x in input_ids]))
+            #                 tf.logging.info(
+            #                     "input_mask: %s" % " ".join([str(x) for x in input_mask]))
+            #                 tf.logging.info(
+            #                     "segment_ids: %s" % " ".join([str(x) for x in segment_ids]))
+            #                 tf.logging.info(
+            #                     "marker: %s" % " ".join([str(x) for x in marker]))
+            #                 tokens_where_marker_is_true = [token for (token, token_marker) in zip(tokens, marker) if token_marker == 1]
+            #                 tf.logging.info("tokens_where_marker_is_true: %s" % " ".join(
+            #                     [tokenization.printable_text(x) for x in tokens_where_marker_is_true]))
+            #                 if is_training:
+            #                     answer_text = " ".join(tokens[start_position:(end_position + 1)])
+            #                     tf.logging.info("start_position: %d" % (start_position))
+            #                     tf.logging.info("end_position: %d" % (end_position))
+            #                     tf.logging.info(
+            #                         "answer: %s" % (tokenization.printable_text(answer_text)))
 
             features.append(
                 InputFeatures(
@@ -672,6 +680,7 @@ def _check_is_max_context(doc_spans, cur_span_index, position):
 
     return cur_span_index == best_span_index
 
+
 def write_predictions(all_examples, all_features, all_results, n_best_size,
                       max_answer_length, do_lower_case, output_prediction_file,
                       output_nbest_file, for_reward=False):
@@ -689,8 +698,9 @@ def write_predictions(all_examples, all_features, all_results, n_best_size,
 
     _PrelimPrediction = collections.namedtuple(  # pylint: disable=invalid-name
         "PrelimPrediction",
-        ["feature_index", "start_index", "end_index", "start_logit", "end_logit", "predicted_yesno", "predicted_followup"])
-    
+        ["feature_index", "start_index", "end_index", "start_logit", "end_logit", "predicted_yesno",
+         "predicted_followup"])
+
     yesno_dict = ['y', 'n', 'x']
     followup_dict = ['y', 'n', 'm']
 
@@ -698,7 +708,7 @@ def write_predictions(all_examples, all_features, all_results, n_best_size,
     all_nbest_json = collections.OrderedDict()
     for (example_index, example) in enumerate(all_examples):
         features = example_index_to_features[example_index]
-        #if len(features) == 0:
+        # if len(features) == 0:
         #    continue
 
         prelim_predictions = []
@@ -792,7 +802,8 @@ def write_predictions(all_examples, all_features, all_results, n_best_size,
             if FLAGS.dataset.lower() == 'coqa':
                 nbest.append(_NbestPrediction(text="unknown", start_logit=0.0, end_logit=0.0))
             elif FLAGS.dataset.lower() == 'quac':
-                nbest.append(_NbestPrediction(text="invalid", start_logit=0.0, end_logit=0.0, predicted_yesno='y', predicted_followup='y'))
+                nbest.append(_NbestPrediction(text="invalid", start_logit=0.0, end_logit=0.0, predicted_yesno='y',
+                                              predicted_followup='y'))
 
         assert len(nbest) >= 1
 
@@ -837,8 +848,6 @@ def write_predictions(all_examples, all_features, all_results, n_best_size,
                 converted[dialog_id]['yesno'].append(value[1])
             for key, value in converted.items():
                 writer.write(json.dumps(value) + '\n')
-            
-        
 
     with tf.gfile.GFile(output_nbest_file, "w") as writer:
         writer.write(json.dumps(all_nbest_json, indent=4) + "\n")
@@ -974,27 +983,29 @@ def _compute_softmax(scores):
         probs.append(score / total_sum)
     return probs
 
+
 def read_features_from_cache(cache_dir, use_RL, use_small):
     features_dir = cache_dir
-    
+
+
 def group_histories(features, markers, mask, slice_num):
     # group history answers into "bigram"
     # e.g. the input markers are  [marker_1, marker_2, marker_3, marker_4],
     # we turn it into [marker_1_2, marker_2_3, marker_3_4]
-    
+
     markers_res = []
     mask_res = []
     grouped_batch_features = []
-    
+
     for i in range(slice_num):
         m = mask[i]
         example_markers = markers[:m]
         markers = markers[m:]
         example_features = features[:m]
         features = features[m:]
-        
+
         feature_without_marker = deepcopy(example_features[0])
-        
+
         group_markers = []
 
         each_group_markers = example_markers[: FLAGS.history_ngram]
@@ -1003,7 +1014,7 @@ def group_histories(features, markers, mask, slice_num):
         temp_feature = deepcopy(example_features[0])
         temp_feature.history_answer_marker = np.asarray(group_markers_res)
         grouped_batch_features.append(temp_feature)
-        
+
         j = 1
         while j < len(example_markers) - (FLAGS.history_ngram - 1):
             each_group_markers = example_markers[j: j + FLAGS.history_ngram]
@@ -1013,14 +1024,14 @@ def group_histories(features, markers, mask, slice_num):
             temp_feature.history_answer_marker = np.asarray(group_markers_res)
             grouped_batch_features.append(temp_feature)
             j += 1
-            
+
         markers_res.extend(group_markers)
         mask_res.append(len(group_markers))
-        
-    
+
     mask_res += [1] * (FLAGS.train_batch_size - len(mask_res))
     return mask_res, grouped_batch_features
-    
+
+
 def add_group_history_markers(each_group_markers):
     # [[0, 0, 0, 2, 2, 0], [1, 0. 0, 1, 0, 0]] --> [1, 0, 0, 1, 2, 0]
     res = [0] * len(each_group_markers[0])
@@ -1029,7 +1040,8 @@ def add_group_history_markers(each_group_markers):
             if m != 0:
                 res[i] = m
     return res
-    
+
+
 def fix_history_answer_marker_for_bhae(sub_batch_history_answer_marker, turn_features):
     res = []
     for marker, turn_feature in zip(sub_batch_history_answer_marker, turn_features):
@@ -1037,44 +1049,47 @@ def fix_history_answer_marker_for_bhae(sub_batch_history_answer_marker, turn_fea
         marker = np.asarray(marker)
         marker[marker == 1] = turn_diff
         res.append(marker.tolist())
-        
+
     return res
 
-def convert_examples_to_variations_and_then_features(examples, tokenizer, max_seq_length, 
-                                doc_stride, max_query_length, max_considered_history_turns, is_training):
+
+def convert_examples_to_variations_and_then_features(examples, tokenizer, max_seq_length,
+                                                     doc_stride, max_query_length, max_considered_history_turns,
+                                                     is_training):
     # different from the "convert_examples_to_features" in cqa_supports.py, we return two masks with the feature (example/variaton trackers).
     # the first mask is the example index, and the second mask is the variation index. Wo do this to keep track of the features generated
     # by different examples and variations.
-    
+
     all_features = []
-    example_features_nums = [] # keep track of how many features are generated from the same example (regardless of example variations)
+    example_features_nums = []  # keep track of how many features are generated from the same example (regardless of example variations)
     example_tracker = []
     variation_tracker = []
     # matching_signals_dict = {}
     unique_id = 1000000000
-    
-    
+
     # when training, we shuffle the data for more stable training.
     # we shuffle here so that we do not need to shuffle when generating batches
-    num_examples = len(examples)    
+    num_examples = len(examples)
     if is_training:
         np.random.seed(0)
         idx = np.random.permutation(num_examples)
         examples_shuffled = np.asarray(examples)[idx]
     else:
         examples_shuffled = np.asarray(examples)
-    
+
     for example_index, example in enumerate(examples_shuffled):
         example_features_num = []
         if FLAGS.reformulate_question:
-            variations = convert_examples_to_example_variations_with_question_reformulated([example], max_considered_history_turns)
+            variations = convert_examples_to_example_variations_with_question_reformulated([example],
+                                                                                           max_considered_history_turns)
         else:
             variations = convert_examples_to_example_variations([example], max_considered_history_turns)
         for variation_index, variation in enumerate(variations):
-            features = convert_examples_to_features([variation], tokenizer, max_seq_length, doc_stride, max_query_length, is_training)
+            features = convert_examples_to_features([variation], tokenizer, max_seq_length, doc_stride,
+                                                    max_query_length, is_training)
             # matching_signals = extract_matching_signals(variation, glove, tfidf_vectorizer)
             # matching_signals_dict[(example_index, variation_index)] = matching_signals
-            
+
             # the example_index and unique_id in features are wrong due to the generation of example variations.
             # we fix them here.
             for i in range(len(features)):
@@ -1087,19 +1102,20 @@ def convert_examples_to_variations_and_then_features(examples, tokenizer, max_se
             example_features_num.append(len(features))
         # every variation of the same example should generate the same amount of features
         assert len(set(example_features_num)) == 1
-        example_features_nums.append(example_features_num[0]) 
+        example_features_nums.append(example_features_num[0])
     assert len(all_features) == len(example_tracker)
     assert len(all_features) == len(variation_tracker)
     # return all_features, example_tracker, variation_tracker, example_features_nums, matching_signals_dict
     return all_features, example_tracker, variation_tracker, example_features_nums
-    
+
+
 def convert_examples_to_example_variations(examples, max_considered_history_turns):
     # an example is "question + passage + markers (M3 + M4) + markers_list (M3, M4)"
     # an example variation is "question + passage + markers (M3)"
     # meaning that we only have one marker for each example variation
     # because we want to make a binary choice for every example variation,
     # and combine all variations to form an example
-    
+
     new_examples = []
     for example in examples:
         # if the example is the first question in the dialog, it does not contain history answers, 
@@ -1109,7 +1125,7 @@ def convert_examples_to_example_variations(examples, max_considered_history_turn
             new_examples.append(example)
         else:
             for history_turn, marker, history_turn_text in zip(
-                    example.metadata['history_turns'][- max_considered_history_turns:], 
+                    example.metadata['history_turns'][- max_considered_history_turns:],
                     example.metadata['tok_history_answer_markers'][- max_considered_history_turns:],
                     example.metadata['history_turns_text'][- max_considered_history_turns:]):
                 each_new_example = deepcopy(example)
@@ -1118,7 +1134,7 @@ def convert_examples_to_example_variations(examples, max_considered_history_turn
                 each_new_example.metadata['tok_history_answer_markers'] = [marker]
                 each_new_example.metadata['history_turns_text'] = [history_turn_text]
                 new_examples.append(each_new_example)
-                
+
             if FLAGS.append_self:
                 # after the variations that contain histories, we append an example that is without any 
                 # history. If the the current question is topic shift, all the attention weights should be
@@ -1129,18 +1145,19 @@ def convert_examples_to_example_variations(examples, max_considered_history_turn
                 each_new_example.metadata['tok_history_answer_markers'] = []
                 each_new_example.metadata['history_turns_text'] = []
                 new_examples.append(each_new_example)
-             
-    return new_examples    
-    
+
+    return new_examples
+
+
 def convert_features_to_feed_dict(features):
     batch_unique_ids, batch_input_ids, batch_input_mask = [], [], []
     batch_segment_ids, batch_start_positions, batch_end_positions, batch_history_answer_marker = [], [], [], []
     batch_yesno, batch_followup = [], []
     batch_metadata = []
-    
+
     yesno_dict = {'y': 0, 'n': 1, 'x': 2}
     followup_dict = {'y': 0, 'n': 1, 'm': 2}
-    
+
     for feature in features:
         batch_unique_ids.append(feature.unique_id)
         batch_input_ids.append(feature.input_ids)
@@ -1152,15 +1169,15 @@ def convert_features_to_feed_dict(features):
         batch_yesno.append(yesno_dict[feature.metadata['yesno']])
         batch_followup.append(followup_dict[feature.metadata['followup']])
         batch_metadata.append(feature.metadata)
-    
-    feed_dict = {'unique_ids': batch_unique_ids, 'input_ids': batch_input_ids, 
-              'input_mask': batch_input_mask, 'segment_ids': batch_segment_ids, 
-              'start_positions': batch_start_positions, 'end_positions': batch_end_positions, 
-              'history_answer_marker': batch_history_answer_marker, 'yesno': batch_yesno, 'followup': batch_followup, 
-              'metadata': batch_metadata}
-    return feed_dict    
-    
-    
+
+    feed_dict = {'unique_ids': batch_unique_ids, 'input_ids': batch_input_ids,
+                 'input_mask': batch_input_mask, 'segment_ids': batch_segment_ids,
+                 'start_positions': batch_start_positions, 'end_positions': batch_end_positions,
+                 'history_answer_marker': batch_history_answer_marker, 'yesno': batch_yesno, 'followup': batch_followup,
+                 'metadata': batch_metadata}
+    return feed_dict
+
+
 def get_turn_features(metadata):
     # extract current turn id, history turn id from metadata as a part of states
     res = []
@@ -1170,12 +1187,4 @@ def get_turn_features(metadata):
         else:
             history_turn_id = 0
         res.append([m['turn'], history_turn_id, m['turn'] - history_turn_id])
-    return res    
-    
-    
-    
-    
-    
-    
-    
-    
+    return res

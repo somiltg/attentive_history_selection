@@ -68,7 +68,7 @@ def main():
     global verbose, recurse, dryrun, makebackup
     try:
         opts, args = getopt.getopt(sys.argv[1:], "drnvh",
-                        ["dryrun", "recurse", "nobackup", "verbose", "help"])
+                                   ["dryrun", "recurse", "nobackup", "verbose", "help"])
     except getopt.error as msg:
         usage(msg)
         return
@@ -103,7 +103,7 @@ def check(file):
             if ((recurse and os.path.isdir(fullname) and
                  not os.path.islink(fullname) and
                  not os.path.split(fullname)[1].startswith("."))
-                or name.lower().endswith(".py")):
+                    or name.lower().endswith(".py")):
                 check(fullname)
         return
 
@@ -163,7 +163,7 @@ class Reindenter:
 
     def __init__(self, f):
         self.find_stmt = 1  # next token begins a fresh stmt?
-        self.level = 0      # current indent level
+        self.level = 0  # current indent level
 
         # Raw file lines.
         self.raw = f.readlines()
@@ -225,8 +225,8 @@ class Reindenter:
                                 if have == getlspace(lines[jline]):
                                     want = jlevel * 4
                                 break
-                    if want < 0:           # Maybe it's a hanging
-                                           # comment like this one,
+                    if want < 0:  # Maybe it's a hanging
+                        # comment like this one,
                         # in which case we should shift it like its base
                         # line got shifted.
                         for j in range(i - 1, -1, -1):
@@ -305,7 +305,7 @@ class Reindenter:
             # must be the first token of the next program statement, or an
             # ENDMARKER.
             self.find_stmt = 0
-            if line:   # not endmarker
+            if line:  # not endmarker
                 self.stats.append((slinecol[0], self.level))
 
 
