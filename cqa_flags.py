@@ -13,15 +13,15 @@ flags.DEFINE_string('f', '', 'kernel')
 
 ## Required parameters
 flags.DEFINE_string(
-    "bert_config_file", "../bert/model_52000/bert_config.json",
+    "bert_config_file", "../bert/uncased_L-12_H-768_A-12/bert_config.json",
     "The config json file corresponding to the pre-trained BERT model. "
     "This specifies the model architecture.")
 
-flags.DEFINE_string("vocab_file", "../bert/model_52000/vocab.txt",
+flags.DEFINE_string("vocab_file", "../bert/uncased_L-12_H-768_A-12/vocab.txt",
                     "The vocabulary file that the BERT model was trained on.")
 
 flags.DEFINE_string(
-    "output_dir", "../bert/bert_out/10001/",
+    "output_dir", "../bert/bert_out/domain_ham_1/",
     "The output directory where the model checkpoints will be written.")
 
 ## Other parameters
@@ -32,15 +32,15 @@ flags.DEFINE_string(
     "coqa_predict_file", "../coqa/coqa-dev-v1.0.json",
     "CoQA json for predictions. E.g., dev-v1.1.json or test-v1.1.json")
 
-flags.DEFINE_string("quac_train_file", "../quac/train_v0.2.json",
+flags.DEFINE_string("quac_train_file", "../quac/train_v0.2_updated.json",
                     "QuAC json for training.")
 
 flags.DEFINE_string(
-    "quac_predict_file", "../quac/val_v0.2.json",
+    "quac_predict_file", "../quac/val_v0.2_updated.json",
     "QuAC json for predictions.")
 
 flags.DEFINE_string(
-    "init_checkpoint", "../bert/model_52000/model_52000.ckpt",
+    "init_checkpoint", "../bert/uncased_L-12_H-768_A-12/bert_model.ckpt",
     "Initial checkpoint (usually from a pre-trained BERT model).")
 
 flags.DEFINE_bool(
@@ -68,14 +68,14 @@ flags.DEFINE_bool("do_train", True, "Whether to run training.")
 
 flags.DEFINE_bool("do_predict", True, "Whether to run eval on the dev set.")
 
-flags.DEFINE_integer("train_batch_size", 16, "Total batch size for training.")
+flags.DEFINE_integer("train_batch_size", 12, "Total batch size for training.")
 
-flags.DEFINE_integer("predict_batch_size", 16,
+flags.DEFINE_integer("predict_batch_size", 12,
                      "Total batch size for predictions.")
 
 flags.DEFINE_float("learning_rate", 5e-5, "The initial learning rate for Adam.")
 
-flags.DEFINE_float("num_train_epochs", 2.0,
+flags.DEFINE_float("num_train_epochs", 20.0,
                    "Total number of training epochs to perform.")
 
 flags.DEFINE_float(
@@ -155,7 +155,7 @@ flags.DEFINE_bool(
     "the data to see if the code works.")
 
 flags.DEFINE_bool(
-    "use_RL", True,
+    "use_RL", False,
     "whether to use the reinforced backtracker."
     "this flag supasses the history flag, because we will choose history freely with RL")
 
@@ -175,11 +175,11 @@ flags.DEFINE_integer("example_batch_size", 4,
                      "when using RL, we want the batch size to be smaller because one example can gen multiple features")
 
 flags.DEFINE_string(
-    "cache_dir", "./cache_large/",
+    "cache_dir", "../bert/bert_out/cache_domain_ham/",
     "we store generated features here, so that we do not need to generate them every time")
 
 flags.DEFINE_integer(
-    "pretrain_steps", 2000,
+    "pretrain_steps", 58000,
     "we pretrain the CQA model for some steps before the reinforced backtracker kicks in")
 
 flags.DEFINE_integer(
@@ -222,7 +222,7 @@ flags.DEFINE_integer(
     "loss: the loss gap on reward set, f1: the f1 on reward set")
 
 flags.DEFINE_bool(
-    "better_hae", False,
+    "better_hae", True,
     "assign different history answer embedding to differet previous turns")
 
 flags.DEFINE_string(
@@ -269,16 +269,16 @@ flags.DEFINE_float("rl_learning_rate", 1e-4, "The initial learning rate for the 
 
 flags.DEFINE_bool("MTL", False, "multi-task learning. jointly learn the dialog acts (followup, yesno)")
 
-flags.DEFINE_bool("DomainL", False, "domain learning. jointly learn the domain type (science, literature, etc.)")
+flags.DEFINE_bool("DomainL", True, "domain learning. jointly learn the domain type (science, literature, etc.)")
 
-flags.DEFINE_float("MTL_lambda", 0.0,
+flags.DEFINE_float("MTL_lambda", 0.1,
                    "total loss = (1 - 2 * lambda) * convqa_loss + lambda * followup_loss + lambda * yesno_loss")
 
-flags.DEFINE_float("Domain_gamma", 0.0,
+flags.DEFINE_float("Domain_gamma", 0.1,
                    "total loss = (1 - 2 * lambda - gamma ) * convqa_loss + lambda * followup_loss + lambda * "
                    "yesno_loss + gamma * domain_loss")
 
-flags.DEFINE_float("MTL_mu", 0.0, "total loss = mu * convqa_loss + lambda * followup_loss + lambda * yesno_loss + gamma * domain_loss")
+flags.DEFINE_float("MTL_mu", 0.8, "total loss = mu * convqa_loss + lambda * followup_loss + lambda * yesno_loss + gamma * domain_loss")
 
 flags.DEFINE_integer(
     "ideal_selected_num", 1,
@@ -309,14 +309,14 @@ flags.DEFINE_bool("front_padding", False, "pad the BERT input sequence at the fr
 
 flags.DEFINE_bool("freeze_bert", False, "freeze BERT")
 
-flags.DEFINE_bool("fine_grained_attention", False, "use fine grained attention")
+flags.DEFINE_bool("fine_grained_attention", True, "use fine grained attention")
 
 flags.DEFINE_bool("append_self", False,
                   "when converting an example to variations, whether to append a variation without any history (self)")
 
 flags.DEFINE_float("null_score_diff_threshold", 1.8, "null_score_diff_threshold")
 
-flags.DEFINE_integer("bert_hidden", 1024, "bert hidden units, 768 or 1024")
+flags.DEFINE_integer("bert_hidden", 768, "bert hidden units, 768 or 1024")
 
 flags.DEFINE_list("domain_array", ['Others','Literature', 'CreativeArts', 'Music', 'MusicGroup', 'Humanities', 'Politics',
                                    'Social Studies', 'Business & Management', 'Sports-Adventure', 'Natural Sciences',
