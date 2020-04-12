@@ -102,9 +102,9 @@ def read_quac_examples(input_file, is_training):
         input_data = input_data[:10]
         # print('input_data:', input_data)
         tf.logging.warning('<<<<<<<<<< load_small_portion is on! >>>>>>>>>>')
-    for entry in input_data:
+    for example in input_data:
         # An additional "CANNOTANSWER" has been added in QuAC data, so no need to append one.
-        entry = entry['paragraphs'][0]
+        entry = example['paragraphs'][0]
         paragraph_text = entry["context"]
         doc_tokens = []
         char_to_word_offset = []
@@ -128,11 +128,15 @@ def read_quac_examples(input_file, is_training):
         answers = [(item['orig_answer']['text'], item['orig_answer']['answer_start']) for item in entry['qas']]
         followups = [item['followup'] for item in entry['qas']]
         yesnos = [item['yesno'] for item in entry['qas']]
+        domain = example['type']
+        if domain not in FLAGS.domain_array:
+            raise ValueError(
+                "Domain ", domain, " not recognised. Not in ", FLAGS.domain_array)
 
         qas = []
         for i, (question, answer, followup, yesno) in enumerate(zip(questions, answers, followups, yesnos)):
             metadata = {'turn': i + 1, 'history_turns': [], 'tok_history_answer_markers': [],
-                        'followup': followup, 'yesno': yesno, 'history_turns_text': []}
+                        'followup': followup, 'yesno': yesno, 'history_turns_text': [], 'domain': domain}
             # if FLAGS.use_RL:
             #     start_index = 0
             # else:
@@ -699,10 +703,11 @@ def write_predictions(all_examples, all_features, all_results, n_best_size,
     _PrelimPrediction = collections.namedtuple(  # pylint: disable=invalid-name
         "PrelimPrediction",
         ["feature_index", "start_index", "end_index", "start_logit", "end_logit", "predicted_yesno",
-         "predicted_followup"])
+         "predicted_followup", "predicted_domain"])
 
     yesno_dict = ['y', 'n', 'x']
     followup_dict = ['y', 'n', 'm']
+    domain_dict = FLAGS.domain_array
 
     all_predictions = collections.OrderedDict()
     all_nbest_json = collections.OrderedDict()
@@ -719,6 +724,7 @@ def write_predictions(all_examples, all_features, all_results, n_best_size,
             end_indexes = _get_best_indexes(result.end_logits, n_best_size)
             predicted_yesno = yesno_dict[np.argmax(result.yesno_logits)]
             predicted_followup = followup_dict[np.argmax(result.followup_logits)]
+            predicted_domain = domain_dict[np.argmax(result.domain_logits)]
             for start_index in start_indexes:
                 for end_index in end_indexes:
                     # We could hypothetically create invalid predictions, e.g., predict
@@ -747,7 +753,8 @@ def write_predictions(all_examples, all_features, all_results, n_best_size,
                             start_logit=result.start_logits[start_index],
                             end_logit=result.end_logits[end_index],
                             predicted_yesno=predicted_yesno,
-                            predicted_followup=predicted_followup
+                            predicted_followup=predicted_followup,
+                            predicted_domain=predicted_domain
                         ))
 
         prelim_predictions = sorted(
@@ -756,7 +763,8 @@ def write_predictions(all_examples, all_features, all_results, n_best_size,
             reverse=True)
 
         _NbestPrediction = collections.namedtuple(  # pylint: disable=invalid-name
-            "NbestPrediction", ["text", "start_logit", "end_logit", "predicted_yesno", "predicted_followup"])
+            "NbestPrediction", ["text", "start_logit", "end_logit", "predicted_yesno", "predicted_followup",
+                                "predicted_domain"])
 
         seen_predictions = {}
         nbest = []
@@ -791,7 +799,8 @@ def write_predictions(all_examples, all_features, all_results, n_best_size,
                     start_logit=pred.start_logit,
                     end_logit=pred.end_logit,
                     predicted_yesno=pred.predicted_yesno,
-                    predicted_followup=pred.predicted_followup
+                    predicted_followup=pred.predicted_followup,
+                    predicted_domain=pred.predicted_domain
                 ))
 
         # In very rare edge cases we could have no valid predictions. So we
@@ -803,7 +812,7 @@ def write_predictions(all_examples, all_features, all_results, n_best_size,
                 nbest.append(_NbestPrediction(text="unknown", start_logit=0.0, end_logit=0.0))
             elif FLAGS.dataset.lower() == 'quac':
                 nbest.append(_NbestPrediction(text="invalid", start_logit=0.0, end_logit=0.0, predicted_yesno='y',
-                                              predicted_followup='y'))
+                                              predicted_followup='y', predicted_domain='Others'))
 
         assert len(nbest) >= 1
 
@@ -822,11 +831,12 @@ def write_predictions(all_examples, all_features, all_results, n_best_size,
             output["end_logit"] = entry.end_logit
             output['yesno'] = entry.predicted_yesno
             output['followup'] = entry.predicted_followup
+            output['domain'] = entry.predicted_domain
             nbest_json.append(output)
 
         assert len(nbest_json) >= 1
 
-        all_predictions[example.qas_id] = (nbest_json[0]["text"], nbest_json[0]['yesno'], nbest_json[0]['followup'])
+        all_predictions[example.qas_id] = (nbest_json[0]["text"], nbest_json[0]['yesno'], nbest_json[0]['followup'], nbest_json[0]['domain'])
         all_nbest_json[example.qas_id] = nbest_json
 
     with tf.gfile.GFile(output_prediction_file, "w") as writer:
@@ -841,11 +851,12 @@ def write_predictions(all_examples, all_features, all_results, n_best_size,
             for key, value in all_predictions.items():
                 dialog_id = key[:36]
                 if dialog_id not in converted:
-                    converted[dialog_id] = {'best_span_str': [], 'qid': [], 'followup': [], 'yesno': []}
+                    converted[dialog_id] = {'best_span_str': [], 'qid': [], 'followup': [], 'yesno': [], 'domain': []}
                 converted[dialog_id]['best_span_str'].append(value[0])
                 converted[dialog_id]['qid'].append(key)
                 converted[dialog_id]['followup'].append(value[2])
                 converted[dialog_id]['yesno'].append(value[1])
+                converted[dialog_id]['domain'].append(value[3])
             for key, value in converted.items():
                 writer.write(json.dumps(value) + '\n')
 
@@ -1152,11 +1163,14 @@ def convert_examples_to_example_variations(examples, max_considered_history_turn
 def convert_features_to_feed_dict(features):
     batch_unique_ids, batch_input_ids, batch_input_mask = [], [], []
     batch_segment_ids, batch_start_positions, batch_end_positions, batch_history_answer_marker = [], [], [], []
-    batch_yesno, batch_followup = [], []
+    batch_yesno, batch_followup, batch_domain = [], [], []
     batch_metadata = []
 
     yesno_dict = {'y': 0, 'n': 1, 'x': 2}
     followup_dict = {'y': 0, 'n': 1, 'm': 2}
+    domain_dict = {}
+    for idx, each in enumerate(FLAGS.domain_array):
+        domain_dict[each] = idx
 
     for feature in features:
         batch_unique_ids.append(feature.unique_id)
@@ -1168,13 +1182,14 @@ def convert_features_to_feed_dict(features):
         batch_history_answer_marker.append(feature.history_answer_marker)
         batch_yesno.append(yesno_dict[feature.metadata['yesno']])
         batch_followup.append(followup_dict[feature.metadata['followup']])
+        batch_domain.append(domain_dict[feature.metadata['domain']])
         batch_metadata.append(feature.metadata)
 
     feed_dict = {'unique_ids': batch_unique_ids, 'input_ids': batch_input_ids,
                  'input_mask': batch_input_mask, 'segment_ids': batch_segment_ids,
                  'start_positions': batch_start_positions, 'end_positions': batch_end_positions,
                  'history_answer_marker': batch_history_answer_marker, 'yesno': batch_yesno, 'followup': batch_followup,
-                 'metadata': batch_metadata}
+                 'domain': batch_domain, 'metadata': batch_metadata}
     return feed_dict
 
 

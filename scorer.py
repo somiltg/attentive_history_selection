@@ -148,6 +148,7 @@ def eval_fn(val_results, model_results, verbose):
     total_dials = 0.
     yes_nos = []
     followups = []
+    domains = []
     unanswerables = []
     for p in val_results:
         for par in p['paragraphs']:
@@ -175,7 +176,7 @@ def eval_fn(val_results, model_results, verbose):
                         human_f1.append(hf1)
                     continue
 
-                pred_span, pred_yesno, pred_followup = model_results[did][q_idx]
+                pred_span, pred_yesno, pred_followup, pred_domain = model_results[did][q_idx]
 
                 max_overlap, _ = metric_max_over_ground_truths( \
                     pred_span, val_spans, par['context'])
@@ -191,6 +192,7 @@ def eval_fn(val_results, model_results, verbose):
                 human_f1.append(hf1)
                 yes_nos.append(pred_yesno == qa['yesno'])
                 followups.append(pred_followup == qa['followup'])
+                domains.append(pred_domain == p['type'])
                 if val_spans == ['CANNOTANSWER']:
                     unanswerables.append(max_f1)
                 if verbose:
@@ -216,11 +218,13 @@ def eval_fn(val_results, model_results, verbose):
         unfiltered_f1 = 100.0 * sum(unfiltered_f1s) / len(unfiltered_f1s)
         yesno_score = (100.0 * sum(yes_nos) / len(yes_nos))
         followup_score = (100.0 * sum(followups) / len(followups))
+        domain_score = (100.0 * sum(domains) / len(domains))
         unanswerable_score = (100.0 * sum(unanswerables) / len(unanswerables))
         metric_json = {"unfiltered_f1": unfiltered_f1, "f1": overall_f1, "HEQ": HEQ_score, "DHEQ": DHEQ_score,
-                       "yes/no": yesno_score, "followup": followup_score, "unanswerable_acc": unanswerable_score}
+                       "yes/no": yesno_score, "followup": followup_score, "domain": domain_score,
+                       "unanswerable_acc": unanswerable_score}
     except:
-        metric_json = {"unfiltered_f1": 0, "f1": 0, "HEQ": 0, "DHEQ": 0, "yes/no": 0, "followup": 0,
+        metric_json = {"unfiltered_f1": 0, "f1": 0, "HEQ": 0, "DHEQ": 0, "yes/no": 0, "followup": 0, "domain": 0,
                        "unanswerable_acc": 0}
         print('val metrics calulation error!')
         print(model_results)
@@ -493,9 +497,9 @@ def external_call(gold, pred):
         if line.strip():
             pred_idx = json.loads(line.strip())
             dia_id = pred_idx['qid'][0].split("_q#")[0]
-            for qid, qspan, qyesno, qfollowup in zip(pred_idx['qid'], pred_idx['best_span_str'], pred_idx['yesno'],
-                                                     pred_idx['followup']):
-                preds[dia_id][qid] = qspan, qyesno, qfollowup
+            for qid, qspan, qyesno, qfollowup, qdomain in zip(pred_idx['qid'], pred_idx['best_span_str'], pred_idx['yesno'],
+                                                     pred_idx['followup'], pred_idx['domain']):
+                preds[dia_id][qid] = qspan, qyesno, qfollowup, qdomain
                 total += 1
     for p in val:
         for par in p['paragraphs']:
@@ -570,9 +574,9 @@ if __name__ == "__main__":
         if line.strip():
             pred_idx = json.loads(line.strip())
             dia_id = pred_idx['qid'][0].split("_q#")[0]
-            for qid, qspan, qyesno, qfollowup in zip(pred_idx['qid'], pred_idx['best_span_str'], pred_idx['yesno'],
-                                                     pred_idx['followup']):
-                preds[dia_id][qid] = qspan, qyesno, qfollowup
+            for qid, qspan, qyesno, qfollowup, qdomain in zip(pred_idx['qid'], pred_idx['best_span_str'],
+                                                              pred_idx['yesno'], pred_idx['followup'], pred_idx['domain']):
+                preds[dia_id][qid] = qspan, qyesno, qfollowup, qdomain
                 total += 1
     for p in val:
         for par in p['paragraphs']:

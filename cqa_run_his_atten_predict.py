@@ -28,7 +28,6 @@ import tokenization
 from cqa_flags import FLAGS
 from cqa_gen_batches import *
 from cqa_model import *
-from cqa_rl_supports import *
 from cqa_supports import *
 
 if FLAGS.dataset.lower() == 'coqa':
@@ -41,7 +40,6 @@ elif FLAGS.dataset.lower() == 'quac':
 
 for key in FLAGS:
     print(key, ':', FLAGS[key].value)
-
 tf.set_random_seed(0)
 tf.logging.set_verbosity(tf.logging.INFO)
 bert_config = modeling.BertConfig.from_json_file(FLAGS.bert_config_file)
@@ -129,6 +127,7 @@ training = tf.placeholder(tf.bool, name='training')
 get_segment_rep = tf.placeholder(tf.bool, name='get_segment_rep')
 yesno_labels = tf.placeholder(tf.int32, shape=[None], name='yesno_labels')
 followup_labels = tf.placeholder(tf.int32, shape=[None], name='followup_labels')
+domain_labels = tf.placeholder(tf.int32, shape=[None], name='domain_labels')
 
 # a unique combo of (e_tracker, f_tracker) is called a slice
 slice_mask = tf.placeholder(tf.int32, shape=[FLAGS.train_batch_size, ], name='slice_mask')
@@ -201,6 +200,7 @@ else:
 (start_logits, end_logits) = cqa_model(new_bert_representation)
 yesno_logits = yesno_model(new_mtl_input)
 followup_logits = followup_model(new_mtl_input)
+domain_logits = domain_model(new_mtl_input)
 
 tvars = tf.trainable_variables()
 # print(tvars)
@@ -237,19 +237,32 @@ end_loss = compute_loss(end_logits, end_positions)
 yesno_loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(logits=yesno_logits, labels=yesno_labels))
 followup_loss = tf.reduce_mean(
     tf.nn.sparse_softmax_cross_entropy_with_logits(logits=followup_logits, labels=followup_labels))
+domain_loss = tf.reduce_mean(
+    tf.nn.sparse_softmax_cross_entropy_with_logits(logits=domain_logits, labels=domain_labels))
 
+cqa_loss = (start_loss + end_loss) / 2.0
+cqa_loss_v = cqa_loss
+domain_loss_v = 0.0
+mtl_loss_v = 0.0
 if FLAGS.MTL:
-    cqa_loss = (start_loss + end_loss) / 2.0
     if FLAGS.MTL_lambda < 1:
-        total_loss = FLAGS.MTL_mu * cqa_loss * cqa_loss + FLAGS.MTL_lambda * yesno_loss + FLAGS.MTL_lambda * followup_loss
+        cqa_loss_v = FLAGS.MTL_mu * cqa_loss
+        mtl_loss_v = FLAGS.MTL_lambda * yesno_loss + FLAGS.MTL_lambda * followup_loss
     else:
-        total_loss = cqa_loss + yesno_loss + followup_loss
+        mtl_loss_v = yesno_loss + followup_loss
     tf.summary.scalar('cqa_loss', cqa_loss)
     tf.summary.scalar('yesno_loss', yesno_loss)
     tf.summary.scalar('followup_loss', followup_loss)
-else:
-    total_loss = (start_loss + end_loss) / 2.0
+if FLAGS.DomainL:
+    if FLAGS.Domain_gamma < 1:
+        cqa_loss_v = FLAGS.MTL_mu * cqa_loss
+        domain_loss_v = FLAGS.Domain_gamma * domain_loss
+    else:
+        domain_loss_v = domain_loss
+    tf.summary.scalar('cqa_loss', cqa_loss)
+    tf.summary.scalar('domain_loss', domain_loss)
 
+total_loss = cqa_loss_v + mtl_loss_v + domain_loss_v
 # if FLAGS.aux:
 #     aux_start_probs = tf.nn.softmax(aux_start_logits, axis=-1)
 #     aux_start_prob = tf.reduce_max(aux_start_probs, axis=-1)
@@ -274,7 +287,8 @@ tf.summary.scalar('total_loss', total_loss)
 merged_summary_op = tf.summary.merge_all()
 
 RawResult = collections.namedtuple("RawResult",
-                                   ["unique_id", "start_logits", "end_logits", "yesno_logits", "followup_logits"])
+                                   ["unique_id", "start_logits", "end_logits", "yesno_logits", "followup_logits",
+                                    "domain_logits"])
 
 attention_dict = {}
 
@@ -317,8 +331,8 @@ with tf.Session() as sess:
                                                                          batch_slice_mask, batch_slice_num)
                 fd = convert_features_to_feed_dict(group_batch_features)
 
-            start_logits_res, end_logits_res, yesno_logits_res, followup_logits_res, batch_total_loss, attention_weights_res = sess.run(
-                [start_logits, end_logits, yesno_logits, followup_logits,
+            start_logits_res, end_logits_res, yesno_logits_res, followup_logits_res, domain_logits_res, batch_total_loss, attention_weights_res = sess.run(
+                [start_logits, end_logits, yesno_logits, followup_logits, domain_logits,
                  total_loss, attention_weights],
                 feed_dict={unique_ids: fd['unique_ids'], input_ids: fd['input_ids'],
                            input_mask: fd['input_mask'], segment_ids: fd['segment_ids'],
@@ -326,7 +340,8 @@ with tf.Session() as sess:
                            history_answer_marker: fd['history_answer_marker'], slice_mask: batch_slice_mask,
                            slice_num: batch_slice_num,
                            aux_start_positions: fd['start_positions'], aux_end_positions: fd['end_positions'],
-                           yesno_labels: fd_output['yesno'], followup_labels: fd_output['followup'], training: False})
+                           yesno_labels: fd_output['yesno'], followup_labels: fd_output['followup'],
+                           domain_labels: fd_output['domain'], training: False})
 
             val_total_loss.append(batch_total_loss)
 
@@ -335,16 +350,19 @@ with tf.Session() as sess:
                                    'batch_slice_num': batch_slice_num, 'len_batch_features': len(batch_features),
                                    'len_output_features': len(output_features)}
 
-            for each_unique_id, each_start_logits, each_end_logits, each_yesno_logits, each_followup_logits in zip(
-                    fd_output['unique_ids'], start_logits_res, end_logits_res, yesno_logits_res, followup_logits_res):
+            for each_unique_id, each_start_logits, each_end_logits, each_yesno_logits, each_followup_logits, \
+                each_domain_logits in zip(
+                fd_output['unique_ids'], start_logits_res, end_logits_res, yesno_logits_res, followup_logits_res,
+                domain_logits_res):
                 each_unique_id = int(each_unique_id)
                 each_start_logits = [float(x) for x in each_start_logits.flat]
                 each_end_logits = [float(x) for x in each_end_logits.flat]
                 each_yesno_logits = [float(x) for x in each_yesno_logits.flat]
                 each_followup_logits = [float(x) for x in each_followup_logits.flat]
+                each_domain_logits = [float(x) for x in each_domain_logits.flat]
                 batch_results.append(RawResult(unique_id=each_unique_id, start_logits=each_start_logits,
                                                end_logits=each_end_logits, yesno_logits=each_yesno_logits,
-                                               followup_logits=each_followup_logits))
+                                               followup_logits=each_followup_logits, domain_logits=each_domain_logits))
 
             all_results.extend(batch_results)
         except Exception as e:
@@ -386,6 +404,7 @@ with tf.Session() as sess:
         val_f1 = val_eval_res['f1']
         val_followup = val_eval_res['followup']
         val_yesno = val_eval_res['yes/no']
+        val_domain = val_eval_res['domain']
         val_heq = val_eval_res['HEQ']
         val_dheq = val_eval_res['DHEQ']
 

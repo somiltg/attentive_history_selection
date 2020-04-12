@@ -269,10 +269,16 @@ flags.DEFINE_float("rl_learning_rate", 1e-4, "The initial learning rate for the 
 
 flags.DEFINE_bool("MTL", False, "multi-task learning. jointly learn the dialog acts (followup, yesno)")
 
+flags.DEFINE_bool("DomainL", False, "domain learning. jointly learn the domain type (science, literature, etc.)")
+
 flags.DEFINE_float("MTL_lambda", 0.0,
                    "total loss = (1 - 2 * lambda) * convqa_loss + lambda * followup_loss + lambda * yesno_loss")
 
-flags.DEFINE_float("MTL_mu", 0.0, "total loss = mu * convqa_loss + lambda * followup_loss + lambda * yesno_loss")
+flags.DEFINE_float("Domain_gamma", 0.0,
+                   "total loss = (1 - 2 * lambda - gamma ) * convqa_loss + lambda * followup_loss + lambda * "
+                   "yesno_loss + gamma * domain_loss")
+
+flags.DEFINE_float("MTL_mu", 0.0, "total loss = mu * convqa_loss + lambda * followup_loss + lambda * yesno_loss + gamma * domain_loss")
 
 flags.DEFINE_integer(
     "ideal_selected_num", 1,
@@ -311,3 +317,7 @@ flags.DEFINE_bool("append_self", False,
 flags.DEFINE_float("null_score_diff_threshold", 1.8, "null_score_diff_threshold")
 
 flags.DEFINE_integer("bert_hidden", 1024, "bert hidden units, 768 or 1024")
+
+flags.DEFINE_list("domain_array", ['Others','Literature', 'CreativeArts', 'Music', 'MusicGroup', 'Humanities', 'Politics',
+                                   'Social Studies', 'Business & Management', 'Sports-Adventure', 'Natural Sciences',
+                                   'Fiction'], "The possible domain types for context.")

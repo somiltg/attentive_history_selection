@@ -106,6 +106,13 @@ def followup_model(sent_rep):
     return logits
 
 
+def domain_model(sent_rep):
+    units = len(FLAGS.domain_array)
+    logits = tf.layers.dense(sent_rep, units, activation=None,
+                             kernel_initializer=tf.truncated_normal_initializer(stddev=0.02), name='domain_model')
+    return logits
+
+
 def history_attention_net(bert_representation, history_attention_input, mtl_input, slice_mask, slice_num):
     # 12 * 768 --> e.g. 20 * 768
     history_attention_input = tf.pad(history_attention_input, [[0, FLAGS.train_batch_size - slice_num], [0, 0]])
@@ -282,7 +289,7 @@ def disable_history_attention_net(bert_representation, history_attention_input, 
     return new_bert_representation, new_mtl_input, tf.squeeze(probs)
 
 
-def fine_grained_history_attention_net(bert_representation, mtl_input, slice_mask, slice_num):
+def fine_grained_history_attention_net(bert_representation, mtl_input, domain_input, slice_mask, slice_num):
     # first concat the bert_representation and mtl_input togenther
     # so that we can process them together
     # shape for bert_representation: 12 * 384 * 768, shape for mtl_input: 12 * 768
