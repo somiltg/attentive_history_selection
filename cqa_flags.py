@@ -68,12 +68,12 @@ flags.DEFINE_bool("do_train", True, "Whether to run training.")
 
 flags.DEFINE_bool("do_predict", True, "Whether to run eval on the dev set.")
 
-flags.DEFINE_integer("train_batch_size", 12, "Total batch size for training.")
+flags.DEFINE_integer("train_batch_size", 24, "Total batch size for training.")
 
-flags.DEFINE_integer("predict_batch_size", 12,
+flags.DEFINE_integer("predict_batch_size", 24,
                      "Total batch size for predictions.")
 
-flags.DEFINE_float("learning_rate", 5e-5, "The initial learning rate for Adam.")
+flags.DEFINE_float("learning_rate", 3e-5, "The initial learning rate for Adam.")
 
 flags.DEFINE_float("num_train_epochs", 20.0,
                    "Total number of training epochs to perform.")
@@ -89,7 +89,7 @@ flags.DEFINE_integer("save_checkpoints_steps", 1000,
 flags.DEFINE_integer("evaluation_steps", 1000,
                      "How often to do evaluation.")
 
-flags.DEFINE_integer("evaluate_after", 18000,
+flags.DEFINE_integer("evaluate_after", 50000,
                      "we do evaluation after centain steps.")
 
 flags.DEFINE_integer("iterations_per_loop", 1000,
@@ -101,7 +101,7 @@ flags.DEFINE_integer(
     "nbest_predictions.json output file.")
 
 flags.DEFINE_integer(
-    "max_answer_length", 50,
+    "max_answer_length", 40,
     "The maximum length of an answer that can be generated. This is needed "
     "because the start and end predictions are not conditioned on one another.")
 
@@ -192,12 +192,12 @@ flags.DEFINE_integer(
     "training will be slow if this is set to a large number")
 
 flags.DEFINE_integer(
-    "max_considered_history_turns", 11,
+    "max_considered_history_turns", 4,
     "we only consider k history turns that immediately proceed the current turn,"
     "training will be slow if this is set to a large number")
 
 flags.DEFINE_integer(
-    "save_actions_and_states_step", 22000,
+    "save_actions_and_states_step", 58000,
     "we store the states and actions when training is almost done for visulazation")
 
 flags.DEFINE_float("history_penalty", 0.000,
@@ -218,7 +218,7 @@ flags.DEFINE_string(
     "loss: the loss gap on reward set, f1: the f1 on reward set")
 
 flags.DEFINE_integer(
-    "train_steps", 22000,
+    "train_steps", 30000,
     "loss: the loss gap on reward set, f1: the f1 on reward set")
 
 flags.DEFINE_bool(
@@ -296,7 +296,7 @@ flags.DEFINE_bool("history_attention_hidden", False, "dialable the history atten
 
 flags.DEFINE_string("history_attention_input", "CLS", "CLS, reduce_mean, reduce_max")
 
-flags.DEFINE_string("mtl_input", "CLS", "CLS, reduce_mean, reduce_max")
+flags.DEFINE_string("mtl_input", "reduce_mean", "CLS, reduce_mean, reduce_max")
 
 flags.DEFINE_integer("history_ngram", 1,
                      "in history attention, we attend to groups of history turns, this param indicate how many histories in one group"
