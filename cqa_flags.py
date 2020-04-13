@@ -68,9 +68,9 @@ flags.DEFINE_bool("do_train", True, "Whether to run training.")
 
 flags.DEFINE_bool("do_predict", True, "Whether to run eval on the dev set.")
 
-flags.DEFINE_integer("train_batch_size", 24, "Total batch size for training.")
+flags.DEFINE_integer("train_batch_size", 12, "Total batch size for training.")
 
-flags.DEFINE_integer("predict_batch_size", 24,
+flags.DEFINE_integer("predict_batch_size", 12,
                      "Total batch size for predictions.")
 
 flags.DEFINE_float("learning_rate", 3e-5, "The initial learning rate for Adam.")
