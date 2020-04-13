@@ -1171,6 +1171,7 @@ def convert_features_to_feed_dict(features):
     domain_dict = {}
     for idx, each in enumerate(FLAGS.domain_array):
         domain_dict[each] = idx
+    print(domain_dict)
 
     for feature in features:
         batch_unique_ids.append(feature.unique_id)
@@ -1190,6 +1191,7 @@ def convert_features_to_feed_dict(features):
                  'start_positions': batch_start_positions, 'end_positions': batch_end_positions,
                  'history_answer_marker': batch_history_answer_marker, 'yesno': batch_yesno, 'followup': batch_followup,
                  'domain': batch_domain, 'metadata': batch_metadata}
+    print(batch_domain)
     return feed_dict
 
 
