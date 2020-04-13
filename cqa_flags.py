@@ -89,7 +89,7 @@ flags.DEFINE_integer("save_checkpoints_steps", 1000,
 flags.DEFINE_integer("evaluation_steps", 1000,
                      "How often to do evaluation.")
 
-flags.DEFINE_integer("evaluate_after", 50000,
+flags.DEFINE_integer("evaluate_after", 5000,
                      "we do evaluation after centain steps.")
 
 flags.DEFINE_integer("iterations_per_loop", 1000,
@@ -179,7 +179,7 @@ flags.DEFINE_string(
     "we store generated features here, so that we do not need to generate them every time")
 
 flags.DEFINE_integer(
-    "pretrain_steps", 58000,
+    "pretrain_steps", 2000,
     "we pretrain the CQA model for some steps before the reinforced backtracker kicks in")
 
 flags.DEFINE_integer(
