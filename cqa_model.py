@@ -289,7 +289,7 @@ def disable_history_attention_net(bert_representation, history_attention_input, 
     return new_bert_representation, new_mtl_input, tf.squeeze(probs)
 
 
-def fine_grained_history_attention_net(bert_representation, mtl_input, domain_input, slice_mask, slice_num):
+def fine_grained_history_attention_net(bert_representation, mtl_input, slice_mask, slice_num):
     # first concat the bert_representation and mtl_input togenther
     # so that we can process them together
     # shape for bert_representation: 12 * 384 * 768, shape for mtl_input: 12 * 768
