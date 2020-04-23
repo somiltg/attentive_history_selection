@@ -266,7 +266,9 @@ def define_class_weight(labels_freq_dict):
     for key in keys:
         score = math.log(mu * total / float(labels_freq_dict[key]))
         class_weight[domain_dict[key]] = score if score > 1.0 else 1.0
-    tf.flags.DEFINE_list("domain_class_weights", class_weight.tolist(),
+    weights = class_weight.tolist()
+    print(type(weights))
+    tf.flags.DEFINE_list("domain_class_weights", weights,
                          "Weights for domain classes to account in loss")
 
 
