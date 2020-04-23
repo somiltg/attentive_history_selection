@@ -287,7 +287,7 @@ def compute_loss(logits, positions):
 
 
 def reduce_class_weighted_domain_loss(cross_entropy_loss, labels, is_training):
-    class_weights = FLAGS.domain_class_weights_train if is_training else FLAGS.domain_class_weights_val
+    class_weights = FLAGS.domain_class_weights_train if is_training is True else FLAGS.domain_class_weights_val
     weights = tf.gather_nd(class_weights, labels)
     return tf.reduce_mean(tf.multiply(weights, cross_entropy_loss))
 
