@@ -83,10 +83,10 @@ flags.DEFINE_float(
     "Proportion of training to perform linear learning rate warmup for. "
     "E.g., 0.1 = 10% of training.")
 
-flags.DEFINE_integer("save_checkpoints_steps", 1000,
+flags.DEFINE_integer("save_checkpoints_steps", 5000,
                      "How often to save the model checkpoint.")
 
-flags.DEFINE_integer("evaluation_steps", 1000,
+flags.DEFINE_integer("evaluation_steps", 5000,
                      "How often to do evaluation.")
 
 flags.DEFINE_integer("evaluate_after", 5000,
@@ -218,7 +218,7 @@ flags.DEFINE_string(
     "loss: the loss gap on reward set, f1: the f1 on reward set")
 
 flags.DEFINE_integer(
-    "train_steps", 30000,
+    "train_steps", 40000,
     "loss: the loss gap on reward set, f1: the f1 on reward set")
 
 flags.DEFINE_bool(
@@ -296,7 +296,7 @@ flags.DEFINE_bool("history_attention_hidden", False, "dialable the history atten
 
 flags.DEFINE_string("history_attention_input", "CLS", "CLS, reduce_mean, reduce_max")
 
-flags.DEFINE_string("mtl_input", "reduce_mean", "CLS, reduce_mean, reduce_max")
+flags.DEFINE_string("mtl_input", "CLS", "CLS, reduce_mean, reduce_max")
 
 flags.DEFINE_integer("history_ngram", 1,
                      "in history attention, we attend to groups of history turns, this param indicate how many histories in one group"
