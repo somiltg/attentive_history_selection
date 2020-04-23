@@ -224,9 +224,9 @@ def compute_loss(logits, positions):
     loss = -tf.reduce_mean(tf.reduce_sum(one_hot_positions * log_probs, axis=-1))
     return loss
 
-def reduce_class_weighted_domain_loss(cross_entropy_loss, labels):
-    class_weights = FLAGS.domain_class_weights
-    weights = tf.gather_nd(class_weights, labels)
+def reduce_class_weighted_domain_loss(cross_entropy_loss, labels, is_training):
+    class_weights = FLAGS.domain_class_weights_train if is_training is True else FLAGS.domain_class_weights_val
+    weights = tf.gather_nd(class_weights, tf.expand_dims(labels, 1))
     return tf.reduce_mean(tf.multiply(weights, cross_entropy_loss))
 
 
@@ -245,7 +245,7 @@ followup_loss = tf.reduce_mean(
     tf.nn.sparse_softmax_cross_entropy_with_logits(logits=followup_logits, labels=followup_labels))
 domain_loss = reduce_class_weighted_domain_loss(
     tf.nn.sparse_softmax_cross_entropy_with_logits(logits=domain_logits, labels=domain_labels),
-    domain_labels)
+    domain_labels, training)
 
 cqa_loss = (start_loss + end_loss) / 2.0
 cqa_loss_v = cqa_loss
