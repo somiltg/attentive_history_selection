@@ -257,7 +257,7 @@ def read_quac_examples(input_file, is_training):
 
 def define_class_weight(labels_freq_dict):
     mu = FLAGS.domain_loss_weight_mu
-    class_weight = tf.zeros(len(FLAGS.domain_array))
+    class_weight = np.zeros(len(FLAGS.domain_array))
     domain_dict = {}
     for idx, each in enumerate(FLAGS.domain_array):
         domain_dict[each] = idx
@@ -266,7 +266,8 @@ def define_class_weight(labels_freq_dict):
     for key in keys:
         score = math.log(mu * total / float(labels_freq_dict[key]))
         class_weight[domain_dict[key]] = score if score > 1.0 else 1.0
-    tf.flags.DEFINE_list("domain_class_weights", class_weight, "Weights for domain classes to account in loss")
+    tf.flags.DEFINE_list("domain_class_weights", tf.convert_to_tensor(class_weight),
+                         "Weights for domain classes to account in loss")
 
 
 def read_coqa_examples(input_file, is_training):
