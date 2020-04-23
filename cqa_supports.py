@@ -261,7 +261,7 @@ def define_class_weight(labels_freq_dict):
     domain_dict = {}
     for idx, each in enumerate(FLAGS.domain_array):
         domain_dict[each] = idx
-    total = tf.reduce_sum(list(labels_freq_dict.values()))
+    total = np.sum(list(labels_freq_dict.values()))
     keys = labels_freq_dict.keys()
     for key in keys:
         score = math.log(mu * total / float(labels_freq_dict[key]))
