@@ -298,7 +298,7 @@ end_loss = compute_loss(end_logits, end_positions)
 yesno_loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(logits=yesno_logits, labels=yesno_labels))
 followup_loss = tf.reduce_mean(
     tf.nn.sparse_softmax_cross_entropy_with_logits(logits=followup_logits, labels=followup_labels))
-
+print('Hellllllllllooooooooo')
 domain_loss_n = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=domain_logits, labels=domain_labels)
 print(domain_loss_n.shape)
 domain_loss = tf.reduce_mean(domain_loss_n)
