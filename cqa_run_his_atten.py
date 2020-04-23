@@ -286,6 +286,12 @@ def compute_loss(logits, positions):
     return loss
 
 
+def reduce_class_weighted_domain_loss(cross_entropy_loss, labels):
+    class_weights = FLAGS.domain_class_weights
+    weights = tf.gather_nd(class_weights, labels)
+    return tf.reduce_mean(tf.multiply(weights, cross_entropy_loss))
+
+
 # get the max prob for the predicted start/end position
 start_probs = tf.nn.softmax(start_logits, axis=-1)
 start_prob = tf.reduce_max(start_probs, axis=-1)
@@ -298,10 +304,9 @@ end_loss = compute_loss(end_logits, end_positions)
 yesno_loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(logits=yesno_logits, labels=yesno_labels))
 followup_loss = tf.reduce_mean(
     tf.nn.sparse_softmax_cross_entropy_with_logits(logits=followup_logits, labels=followup_labels))
-print('Hellllllllllooooooooo')
-domain_loss_n = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=domain_logits, labels=domain_labels)
-print(domain_loss_n.shape)
-domain_loss = tf.reduce_mean(domain_loss_n)
+domain_loss = reduce_class_weighted_domain_loss(
+    tf.nn.sparse_softmax_cross_entropy_with_logits(logits=domain_logits, labels=domain_labels),
+    domain_labels)
 
 cqa_loss = (start_loss + end_loss) / 2.0
 cqa_loss_v = cqa_loss
@@ -539,7 +544,6 @@ with tf.Session() as sess:
                 val_heq = val_eval_res['HEQ']
                 val_dheq = val_eval_res['DHEQ']
                 val_domain = val_eval_res['domain']
-                print(val_eval_res.keys())
 
                 heq_list.append(val_heq)
                 dheq_list.append(val_dheq)

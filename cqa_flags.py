@@ -321,3 +321,5 @@ flags.DEFINE_integer("bert_hidden", 768, "bert hidden units, 768 or 1024")
 flags.DEFINE_list("domain_array", ['Others','Literature', 'CreativeArts', 'Music', 'MusicGroup', 'Humanities', 'Politics',
                                    'Social Studies', 'Business & Management', 'Sports-Adventure', 'Natural Sciences',
                                    'Fiction'], "The possible domain types for context.")
+
+flags.DEFINE_float("domain_loss_weight_mu", 0.15, "Hyperparameter to be used while setting class weight for domain loss reduction")

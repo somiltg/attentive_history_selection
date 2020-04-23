@@ -97,6 +97,7 @@ def read_quac_examples(input_file, is_training):
             return True
         return False
 
+    freq_dict = {}
     examples = []
     if FLAGS.load_small_portion:
         input_data = input_data[:10]
@@ -129,6 +130,10 @@ def read_quac_examples(input_file, is_training):
         followups = [item['followup'] for item in entry['qas']]
         yesnos = [item['yesno'] for item in entry['qas']]
         domain = example['type']
+        if domain in freq_dict:
+            freq_dict[domain] = freq_dict[domain] + len(questions)
+        else:
+            freq_dict[domain] = len(questions)
         if domain not in FLAGS.domain_array:
             raise ValueError(
                 "Domain ", domain, " not recognised. Not in ", FLAGS.domain_array)
@@ -244,7 +249,24 @@ def read_quac_examples(input_file, is_training):
                 metadata=qa['metadata'])
             examples.append(example)
             # print(example)
+    print(freq_dict)
+    define_class_weight(freq_dict)
+    print(FLAGS.domain_class_weights)
     return examples
+
+
+def define_class_weight(labels_freq_dict):
+    mu = FLAGS.domain_loss_weight_mu
+    class_weight = tf.zeros(len(FLAGS.domain_array))
+    domain_dict = {}
+    for idx, each in enumerate(FLAGS.domain_array):
+        domain_dict[each] = idx
+    total = tf.reduce_sum(list(labels_freq_dict.values()))
+    keys = labels_freq_dict.keys()
+    for key in keys:
+        score = math.log(mu * total / float(labels_freq_dict[key]))
+        class_weight[domain_dict[key]] = score if score > 1.0 else 1.0
+    tf.flags.DEFINE_list("domain_class_weights", class_weight, "Weights for domain classes to account in loss")
 
 
 def read_coqa_examples(input_file, is_training):
@@ -836,7 +858,8 @@ def write_predictions(all_examples, all_features, all_results, n_best_size,
 
         assert len(nbest_json) >= 1
 
-        all_predictions[example.qas_id] = (nbest_json[0]["text"], nbest_json[0]['yesno'], nbest_json[0]['followup'], nbest_json[0]['domain'])
+        all_predictions[example.qas_id] = (
+        nbest_json[0]["text"], nbest_json[0]['yesno'], nbest_json[0]['followup'], nbest_json[0]['domain'])
         all_nbest_json[example.qas_id] = nbest_json
 
     with tf.gfile.GFile(output_prediction_file, "w") as writer:
