@@ -299,8 +299,9 @@ yesno_loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(logit
 followup_loss = tf.reduce_mean(
     tf.nn.sparse_softmax_cross_entropy_with_logits(logits=followup_logits, labels=followup_labels))
 
-domain_loss = tf.reduce_mean(
-    tf.nn.sparse_softmax_cross_entropy_with_logits(logits=domain_logits, labels=domain_labels))
+domain_loss_n = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=domain_logits, labels=domain_labels)
+print(domain_loss_n.shape)
+domain_loss = tf.reduce_mean(domain_loss_n)
 
 cqa_loss = (start_loss + end_loss) / 2.0
 cqa_loss_v = cqa_loss
@@ -553,10 +554,12 @@ with tf.Session() as sess:
                 val_summary.value.add(tag="val_domain", simple_value=val_domain)
 
                 print('evaluation: {}, total_loss: {}, f1: {}, followup: {}, yesno: {}, domain:{}, heq: {}, dheq: {}\n'
-                    .format(step, val_total_loss_value, val_f1, val_followup, val_yesno, val_domain, val_heq, val_dheq))
+                      .format(step, val_total_loss_value, val_f1, val_followup, val_yesno, val_domain, val_heq,
+                              val_dheq))
                 with open(FLAGS.output_dir + 'step_result.txt', 'a') as fout:
                     fout.write('{},{},{},{},{},{},{},{}\n'.format(step, val_f1, val_heq, val_dheq,
-                                                               val_yesno, val_followup, val_domain, FLAGS.output_dir))
+                                                                  val_yesno, val_followup, val_domain,
+                                                                  FLAGS.output_dir))
 
                 val_summary.value.add(tag="total_loss", simple_value=val_total_loss_value)
                 val_summary.value.add(tag="f1", simple_value=val_f1)
@@ -580,5 +583,6 @@ best_domain = domain_list[best_f1_idx]
 with open(FLAGS.output_dir + 'result.txt', 'w') as fout:
     fout.write('{},{},{},{},{},{},{},{},{},{},{},{}\n'.format(best_f1, best_heq, best_dheq, best_yesno, best_followup,
                                                               best_domain,
-                                                           FLAGS.MTL_lambda, FLAGS.MTL_mu, FLAGS.MTL, FLAGS.mtl_input,
-                                                           FLAGS.history_attention_input, FLAGS.output_dir))
+                                                              FLAGS.MTL_lambda, FLAGS.MTL_mu, FLAGS.MTL,
+                                                              FLAGS.mtl_input,
+                                                              FLAGS.history_attention_input, FLAGS.output_dir))
