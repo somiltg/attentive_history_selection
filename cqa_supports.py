@@ -250,14 +250,14 @@ def read_quac_examples(input_file, is_training):
             examples.append(example)
             # print(example)
     print(freq_dict)
-    define_class_weight(freq_dict)
+    define_class_weight(freq_dict, is_training)
     print(FLAGS.domain_class_weights)
     return examples
 
 
-def define_class_weight(labels_freq_dict):
+def define_class_weight(labels_freq_dict, is_training):
     mu = FLAGS.domain_loss_weight_mu
-    class_weight = np.zeros(len(FLAGS.domain_array))
+    class_weight = np.ones(len(FLAGS.domain_array), dtype=float)
     domain_dict = {}
     for idx, each in enumerate(FLAGS.domain_array):
         domain_dict[each] = idx
@@ -266,10 +266,8 @@ def define_class_weight(labels_freq_dict):
     for key in keys:
         score = math.log(mu * total / float(labels_freq_dict[key]))
         class_weight[domain_dict[key]] = score if score > 1.0 else 1.0
-    weights = class_weight.tolist()
-    print(type(weights))
-    tf.flags.DEFINE_list("domain_class_weights", weights,
-                         "Weights for domain classes to account in loss")
+    tf.flags.DEFINE_list("domain_class_weights_train" if is_training else "domain_class_weights_val",
+                         class_weight.tolist(), "Weights for domain classes to account in loss")
 
 
 def read_coqa_examples(input_file, is_training):
