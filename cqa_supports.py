@@ -251,7 +251,7 @@ def read_quac_examples(input_file, is_training):
             # print(example)
     print(freq_dict)
     define_class_weight(freq_dict, is_training)
-    print(FLAGS.domain_class_weights)
+    print(FLAGS.domain_class_weights_train if is_training else FLAGS.domain_class_weights_val)
     return examples
 
 
